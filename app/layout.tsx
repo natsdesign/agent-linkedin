@@ -14,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="flex h-screen overflow-hidden bg-gray-950">
+    <html lang="fr">
+      <body className="flex h-screen overflow-hidden bg-zinc-50">
         <ToastProvider>
           <Sidebar />
           <main className="flex-1 overflow-y-auto">

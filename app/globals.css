@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -10,33 +10,33 @@
   }
 
   body {
-    @apply bg-gray-950 text-gray-100 antialiased;
+    @apply bg-zinc-50 text-zinc-900 antialiased;
   }
 
   * {
-    @apply border-gray-800;
+    @apply border-zinc-200;
   }
 
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   ::-webkit-scrollbar-track {
     @apply bg-transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-700 rounded-full;
+    @apply bg-zinc-300 rounded-full;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-600;
+    @apply bg-zinc-400;
   }
 }
 
 @layer utilities {
-  .glass {
-    @apply bg-white/5 backdrop-blur-sm border border-white/10;
+  .card {
+    @apply bg-white border border-zinc-200/80 shadow-card rounded-xl;
   }
-  .gradient-text {
-    @apply bg-gradient-to-r from-brand-400 to-purple-400 bg-clip-text text-transparent;
+  .card-hover {
+    @apply bg-white border border-zinc-200/80 shadow-card hover:shadow-card-hover hover:border-zinc-300 transition-all duration-200 rounded-xl;
   }
 }

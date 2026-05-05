@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, createContext, useContext, useCallback } from "react";
-import { X } from "lucide-react";
+import { X, CheckCircle2, AlertCircle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ToastType = "success" | "info" | "error";
@@ -17,6 +17,24 @@ type ToastContextType = {
 };
 
 const ToastContext = createContext<ToastContextType>({ showToast: () => {} });
+
+const TOAST_CONFIG: Record<ToastType, { icon: React.ElementType; cls: string; iconCls: string }> = {
+  success: {
+    icon:    CheckCircle2,
+    cls:     "bg-white border-zinc-200 text-zinc-700",
+    iconCls: "text-brand-500",
+  },
+  info: {
+    icon:    Info,
+    cls:     "bg-white border-zinc-200 text-zinc-700",
+    iconCls: "text-blue-500",
+  },
+  error: {
+    icon:    AlertCircle,
+    cls:     "bg-white border-red-200 text-zinc-700",
+    iconCls: "text-red-500",
+  },
+};
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -46,25 +64,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+  const { icon: Icon, cls, iconCls } = TOAST_CONFIG[toast.type];
+
   return (
     <div
       className={cn(
-        "pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border text-sm font-medium backdrop-blur-sm min-w-[220px]",
-        toast.type === "error"
-          ? "bg-red-950/95 border-red-700/50 text-red-200"
-          : "bg-gray-900/95 border-gray-700 text-gray-200"
+        "pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium min-w-[220px]",
+        cls
       )}
     >
-      <span
-        className={cn(
-          "w-2 h-2 rounded-full shrink-0",
-          toast.type === "error" ? "bg-red-400" : "bg-brand-400"
-        )}
-      />
+      <Icon size={16} className={cn("shrink-0", iconCls)} />
       <span className="flex-1">{toast.message}</span>
       <button
         onClick={onDismiss}
-        className="ml-1 text-gray-600 hover:text-gray-300 transition-colors shrink-0"
+        className="ml-1 text-zinc-300 hover:text-zinc-600 transition-colors shrink-0"
       >
         <X size={13} />
       </button>

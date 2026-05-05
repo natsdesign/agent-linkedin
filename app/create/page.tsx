@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Sparkles,
+  Zap,
   Send,
   Loader2,
   CheckCircle2,
@@ -23,7 +23,7 @@ import type { GeneratedPost } from "@/types";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase = "loading" | "chat" | "generating" | "posts";
-type Step = 1 | 2 | 3 | "done";
+type Step  = 1 | 2 | 3 | "done";
 
 type ChatMessage = {
   id: string;
@@ -57,9 +57,7 @@ type PostState = GeneratedPost & {
 
 function parseQ3(text: string): { count: number; format: string } {
   const countMatch = text.match(/\b(\d+)\b/);
-  const count = countMatch
-    ? Math.min(10, Math.max(1, parseInt(countMatch[1], 10)))
-    : 5;
+  const count  = countMatch ? Math.min(10, Math.max(1, parseInt(countMatch[1], 10))) : 5;
   const formats = ["liste", "storytelling", "carrousel", "court", "texte"];
   const format = formats.find((f) => text.toLowerCase().includes(f)) ?? "texte";
   return { count, format };
@@ -85,7 +83,6 @@ function ThinkingDots() {
   );
 }
 
-// Auto-resize textarea
 function AutoTextarea({
   value,
   onChange,
@@ -115,7 +112,6 @@ function AutoTextarea({
   );
 }
 
-// Post card (phase 2)
 function PostCard({
   post,
   answers,
@@ -133,9 +129,9 @@ function PostCard({
     if (validated || post.validating) return;
     onUpdate({ validating: true });
     const res = await fetch(`/api/posts/${post.id}`, {
-      method: "PATCH",
+      method:  "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "validated" }),
+      body:    JSON.stringify({ status: "validated" }),
     });
     if (res.ok) {
       onUpdate({ status: "validated", validating: false });
@@ -149,13 +145,13 @@ function PostCard({
     if (post.regenerating) return;
     onUpdate({ regenerating: true });
     const res = await fetch("/api/agent/regenerate", {
-      method: "POST",
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        post_id: post.id,
+      body:    JSON.stringify({
+        post_id:  post.id,
         subjects: answers.subjects ?? "",
-        tone: answers.tone ?? "inspirant",
-        format: post.format ?? answers.format ?? "texte",
+        tone:     answers.tone ?? "inspirant",
+        format:   post.format ?? answers.format ?? "texte",
       }),
     });
     if (res.ok) {
@@ -170,24 +166,24 @@ function PostCard({
   return (
     <div
       className={cn(
-        "glass rounded-xl flex flex-col transition-all duration-300",
-        validated && "border border-emerald-500/40 bg-emerald-500/5"
+        "card flex flex-col transition-all duration-300",
+        validated && "border-brand-200 bg-brand-50/30"
       )}
     >
       {/* Badges */}
-      <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-white/5">
+      <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-zinc-100">
         {post.format && (
-          <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-brand-500/15 text-brand-400 border border-brand-500/25">
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-brand-100 text-brand-700 border border-brand-200">
             {post.format}
           </span>
         )}
         {post.subject && (
-          <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-700/60 text-gray-400">
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-zinc-100 text-zinc-500">
             {post.subject}
           </span>
         )}
         {validated && (
-          <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+          <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-brand-600">
             <CheckCircle2 size={12} />
             Validé
           </span>
@@ -197,8 +193,8 @@ function PostCard({
       {/* Editable content */}
       <div className="relative px-4 py-3 flex-1">
         {post.regenerating && (
-          <div className="absolute inset-0 bg-gray-900/70 rounded-b-xl flex items-center justify-center backdrop-blur-sm z-10">
-            <div className="flex items-center gap-2 text-brand-400">
+          <div className="absolute inset-0 bg-white/80 rounded-b-xl flex items-center justify-center backdrop-blur-sm z-10">
+            <div className="flex items-center gap-2 text-brand-600">
               <Loader2 size={15} className="animate-spin" />
               <span className="text-xs font-medium">Régénération…</span>
             </div>
@@ -210,7 +206,7 @@ function PostCard({
             setContent(v);
             onUpdate({ content: v });
           }}
-          className="w-full bg-transparent text-sm text-gray-200 leading-relaxed resize-none focus:outline-none placeholder-gray-600"
+          className="w-full bg-transparent text-sm text-zinc-700 leading-relaxed resize-none focus:outline-none placeholder-zinc-400"
         />
       </div>
 
@@ -219,7 +215,7 @@ function PostCard({
         <button
           onClick={handleRegenerate}
           disabled={post.regenerating || validated}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-200 border border-gray-700 hover:border-gray-600 hover:bg-white/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <RefreshCw size={12} />
           Regénérer
@@ -230,8 +226,8 @@ function PostCard({
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ml-auto",
             validated
-              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-default"
-              : "bg-brand-600 hover:bg-brand-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              ? "bg-brand-100 text-brand-700 border border-brand-200 cursor-default"
+              : "bg-brand-500 hover:bg-brand-600 text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           )}
         >
           {post.validating ? (
@@ -251,49 +247,36 @@ function PostCard({
 
 export default function CreatePage() {
   const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("loading");
-  const [step, setStep] = useState<Step>(1);
+  const [phase,       setPhase]       = useState<Phase>("loading");
+  const [step,        setStep]        = useState<Step>(1);
   const [agentTyping, setAgentTyping] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [agentCtx, setAgentCtx] = useState<AgentContext | null>(null);
-  const [answers, setAnswers] = useState<Partial<Answers>>({});
-  const [input, setInput] = useState("");
-  const [posts, setPosts] = useState<PostState[]>([]);
+  const [messages,    setMessages]    = useState<ChatMessage[]>([]);
+  const [agentCtx,    setAgentCtx]    = useState<AgentContext | null>(null);
+  const [answers,     setAnswers]     = useState<Partial<Answers>>({});
+  const [input,       setInput]       = useState("");
+  const [posts,       setPosts]       = useState<PostState[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef  = useRef<HTMLTextAreaElement>(null);
 
-  // ── Scroll to bottom when messages change ──
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, agentTyping]);
 
-  // ── Init: check profile then fetch start context ──
   useEffect(() => {
     async function init() {
       const profileRes = await fetch("/api/profile");
-      const profile = await profileRes.json();
-      if (!profile?.id) {
-        router.replace("/onboarding");
-        return;
-      }
+      const profile    = await profileRes.json();
+      if (!profile?.id) { router.replace("/onboarding"); return; }
       const res = await fetch("/api/agent/start");
       if (!res.ok) throw new Error("Failed to load");
       const ctx: AgentContext = await res.json();
       setAgentCtx(ctx);
-      setMessages([
-        {
-          id: uid(),
-          from: "agent",
-          text: ctx.question,
-          suggestions: ctx.suggestions,
-        },
-      ]);
+      setMessages([{ id: uid(), from: "agent", text: ctx.question, suggestions: ctx.suggestions }]);
       setPhase("chat");
     }
     init().catch(() => setPhase("chat"));
   }, [router]);
 
-  // ── Add user message + trigger next agent message ──
   const submitAnswer = useCallback(
     (text: string) => {
       const trimmed = text.trim();
@@ -311,12 +294,7 @@ export default function CreatePage() {
           setStep(2);
           setMessages((prev) => [
             ...prev,
-            {
-              id: uid(),
-              from: "agent",
-              text: "Quel ton pour cette semaine ?",
-              suggestions: agentCtx.toneSuggestions,
-            },
+            { id: uid(), from: "agent", text: "Quel ton pour cette semaine ?", suggestions: agentCtx.toneSuggestions },
           ]);
         }, 600);
       } else if (step === 2) {
@@ -327,12 +305,7 @@ export default function CreatePage() {
           setStep(3);
           setMessages((prev) => [
             ...prev,
-            {
-              id: uid(),
-              from: "agent",
-              text: "Combien de posts et quel format principal ?",
-              suggestions: agentCtx.formatSuggestions,
-            },
+            { id: uid(), from: "agent", text: "Combien de posts et quel format principal ?", suggestions: agentCtx.formatSuggestions },
           ]);
         }, 600);
       } else if (step === 3) {
@@ -344,36 +317,29 @@ export default function CreatePage() {
     [step, agentCtx]
   );
 
-  // ── Generate posts ──
   async function handleGenerate() {
     setPhase("generating");
     try {
       const res = await fetch("/api/agent/generate", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(answers),
+        body:    JSON.stringify(answers),
       });
       if (!res.ok) throw new Error("Generation failed");
       const data: GeneratedPost[] = await res.json();
-      setPosts(
-        data.map((p) => ({ ...p, regenerating: false, validating: false }))
-      );
+      setPosts(data.map((p) => ({ ...p, regenerating: false, validating: false })));
       setPhase("posts");
     } catch {
       setPhase("chat");
     }
   }
 
-  // ── Update a single post in state ──
   function updatePost(id: string, patch: Partial<PostState>) {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...patch } : p))
-    );
+    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
 
   const validatedCount = posts.filter((p) => p.status === "validated").length;
 
-  // ── Handle textarea Enter key ──
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -381,33 +347,35 @@ export default function CreatePage() {
     }
   }
 
-  // ─────────────────────────── RENDER ─────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
 
   if (phase === "loading") {
     return (
       <div className="flex h-screen items-center justify-center">
-        <Loader2 size={24} className="animate-spin text-brand-400" />
+        <Loader2 size={22} className="animate-spin text-brand-500" />
       </div>
     );
   }
 
+  // ── Generating ─────────────────────────────────────────────────────────────
+
   if (phase === "generating") {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-5 px-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-brand-900/40">
-          <Sparkles size={28} className="text-white animate-pulse" />
+      <div className="flex h-screen flex-col items-center justify-center gap-6 px-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-brand-500 flex items-center justify-center shadow-lg">
+          <Zap size={28} className="text-white animate-pulse" fill="currentColor" />
         </div>
         <div>
-          <p className="text-white font-semibold mb-1">Génération en cours…</p>
-          <p className="text-sm text-gray-500 max-w-xs">
-            L&apos;agent analyse vos inspirations et génère vos posts…
+          <p className="text-zinc-900 font-semibold mb-1.5">Génération en cours…</p>
+          <p className="text-sm text-zinc-400 max-w-xs">
+            L&apos;agent analyse vos inspirations et génère vos posts.
           </p>
         </div>
-        <div className="flex gap-1.5 mt-2">
+        <div className="flex gap-1.5">
           {[0, 1, 2, 3, 4].map((i) => (
             <span
               key={i}
-              className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce"
+              className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce"
               style={{ animationDelay: `${i * 120}ms` }}
             />
           ))}
@@ -416,18 +384,18 @@ export default function CreatePage() {
     );
   }
 
+  // ── Posts ──────────────────────────────────────────────────────────────────
+
   if (phase === "posts") {
     return (
       <div className="flex flex-col min-h-screen pb-20">
-        {/* Header */}
         <div className="px-8 pt-8 pb-6">
-          <h1 className="text-xl font-semibold text-white">Posts générés</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">Posts générés</h1>
+          <p className="text-sm text-zinc-400 mt-0.5">
             {posts.length} post{posts.length > 1 ? "s" : ""} · éditez, validez ou regénérez
           </p>
         </div>
 
-        {/* Cards grid */}
         <div className="flex-1 px-8 pb-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
           {posts.map((post) => (
             <PostCard
@@ -440,21 +408,21 @@ export default function CreatePage() {
         </div>
 
         {/* Sticky bottom bar */}
-        <div className="fixed bottom-0 left-60 right-0 z-20 bg-gray-950/95 backdrop-blur-sm border-t border-gray-800 px-8 py-3">
+        <div className="fixed bottom-0 left-60 right-0 z-20 bg-white/95 backdrop-blur-sm border-t border-zinc-200 px-8 py-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-400">
-              <span className="text-white font-semibold">{validatedCount}</span> post
+            <p className="text-sm text-zinc-500">
+              <span className="text-zinc-900 font-semibold">{validatedCount}</span> post
               {validatedCount > 1 ? "s" : ""} validé{validatedCount > 1 ? "s" : ""}{" "}
-              <span className="text-gray-600">sur {posts.length}</span>
+              <span className="text-zinc-300">sur {posts.length}</span>
             </p>
             <button
               onClick={() => router.push("/calendar")}
               disabled={validatedCount === 0}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.98]",
                 validatedCount > 0
-                  ? "bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-900/30"
-                  : "bg-gray-800 text-gray-500 cursor-not-allowed opacity-50"
+                  ? "bg-brand-500 hover:bg-brand-600 text-white"
+                  : "bg-zinc-100 text-zinc-300 cursor-not-allowed"
               )}
             >
               Aller au calendrier
@@ -466,21 +434,19 @@ export default function CreatePage() {
     );
   }
 
-  // ── Phase chat ─────────────────────────────────────────────────────────────
+  // ── Chat ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen bg-zinc-50">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-800 shrink-0">
-        <div className="w-9 h-9 rounded-lg bg-brand-600/20 border border-brand-500/30 flex items-center justify-center">
-          <Sparkles size={17} className="text-brand-400" />
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 bg-white shrink-0">
+        <div className="w-9 h-9 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center">
+          <Zap size={17} className="text-brand-600" />
         </div>
         <div>
-          <h1 className="font-semibold text-white text-sm">Agent Créateur</h1>
-          <p className="text-xs text-gray-500">
-            {step === "done"
-              ? "Prêt à générer vos posts"
-              : `Question ${step} sur 3`}
+          <h1 className="font-semibold text-zinc-900 text-sm">Agent Créateur</h1>
+          <p className="text-xs text-zinc-400">
+            {step === "done" ? "Prêt à générer vos posts" : `Question ${step} sur 3`}
           </p>
         </div>
 
@@ -495,7 +461,7 @@ export default function CreatePage() {
                   ? "bg-brand-500"
                   : s === step
                   ? "bg-brand-400 scale-125"
-                  : "bg-gray-700"
+                  : "bg-zinc-200"
               )}
             />
           ))}
@@ -503,24 +469,18 @@ export default function CreatePage() {
       </div>
 
       {/* Messages */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-6 py-5 space-y-4"
-      >
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={cn(
-              "flex flex-col gap-2",
-              msg.from === "user" ? "items-end" : "items-start"
-            )}
+            className={cn("flex flex-col gap-2", msg.from === "user" ? "items-end" : "items-start")}
           >
             <div
               className={cn(
                 "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                 msg.from === "user"
-                  ? "bg-brand-600 text-white rounded-br-sm"
-                  : "bg-gray-800/80 text-gray-200 rounded-bl-sm"
+                  ? "bg-brand-500 text-white rounded-br-sm"
+                  : "bg-white border border-zinc-200 text-zinc-700 rounded-bl-sm shadow-sm"
               )}
             >
               <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -533,7 +493,7 @@ export default function CreatePage() {
                   <button
                     key={s}
                     onClick={() => submitAnswer(s)}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 border border-gray-700 text-gray-400 hover:text-white hover:border-brand-500/50 hover:bg-brand-600/10 transition-all"
+                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-white border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:border-brand-300 hover:bg-brand-50 transition-all"
                   >
                     {s}
                   </button>
@@ -543,10 +503,9 @@ export default function CreatePage() {
           </div>
         ))}
 
-        {/* Agent typing indicator */}
         {agentTyping && (
           <div className="flex items-start">
-            <div className="bg-gray-800/80 rounded-2xl rounded-bl-sm">
+            <div className="bg-white border border-zinc-200 rounded-2xl rounded-bl-sm shadow-sm">
               <ThinkingDots />
             </div>
           </div>
@@ -554,13 +513,13 @@ export default function CreatePage() {
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 px-6 py-4 border-t border-gray-800">
+      <div className="shrink-0 px-6 py-4 border-t border-zinc-200 bg-white">
         {step === "done" ? (
           <button
             onClick={handleGenerate}
-            className="w-full flex items-center justify-center gap-2.5 py-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-brand-900/30"
+            className="w-full flex items-center justify-center gap-2.5 py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-all active:scale-[0.98] shadow-sm"
           >
-            <Sparkles size={17} />
+            <Zap size={17} />
             Générer mes posts
             <ChevronRight size={17} />
           </button>
@@ -579,14 +538,14 @@ export default function CreatePage() {
                   : "Nombre de posts et format…"
               }
               rows={1}
-              className="flex-1 bg-white/5 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/40 transition-all"
+              className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-all"
               style={{ maxHeight: "120px", overflowY: "auto" }}
               disabled={agentTyping}
             />
             <button
               onClick={() => submitAnswer(input)}
               disabled={!input.trim() || agentTyping}
-              className="flex items-center justify-center w-10 h-10 bg-brand-600 hover:bg-brand-500 text-white rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              className="flex items-center justify-center w-10 h-10 bg-brand-500 hover:bg-brand-600 text-white rounded-xl transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             >
               <Send size={15} />
             </button>

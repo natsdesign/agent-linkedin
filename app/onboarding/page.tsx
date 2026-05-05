@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ChevronLeft, ChevronRight, Check, Sparkles } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Check, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -17,12 +17,12 @@ type FormData = {
 };
 
 const INITIAL: FormData = {
-  niche: "",
-  target_audience: "",
+  niche:             "",
+  target_audience:   "",
   posting_frequency: 5,
-  tone: "",
-  goals: [],
-  context: "",
+  tone:              "",
+  goals:             [],
+  context:           "",
 };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -55,27 +55,26 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-300 mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-zinc-700 mb-1.5">{label}</label>
       {children}
-      {hint && <p className="text-xs text-gray-600 mt-1.5">{hint}</p>}
+      {hint && <p className="text-xs text-zinc-400 mt-1.5">{hint}</p>}
     </div>
   );
 }
 
 const inputCls =
-  "w-full bg-white/5 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/40 transition-all";
+  "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-all";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState<FormData>(INITIAL);
+  const [checking,   setChecking]   = useState(true);
+  const [step,       setStep]       = useState(0);
+  const [form,       setForm]       = useState<FormData>(INITIAL);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error,      setError]      = useState<string | null>(null);
 
-  // Check if profile already exists
   useEffect(() => {
     fetch("/api/profile")
       .then((r) => r.json())
@@ -110,9 +109,9 @@ export default function OnboardingPage() {
     setSubmitting(true);
     try {
       const res = await fetch("/api/profile", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body:    JSON.stringify(form),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -125,23 +124,18 @@ export default function OnboardingPage() {
     }
   }
 
-  // ── Loading state ──
   if (checking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950">
-        <Loader2 size={24} className="animate-spin text-brand-400" />
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <Loader2 size={24} className="animate-spin text-brand-500" />
       </div>
     );
   }
 
-  // ── Step content ──
   const stepContent = [
     // Step 1 — Ton profil
     <div key="step1" className="space-y-5">
-      <Field
-        label="Ta niche"
-        hint="Le domaine sur lequel tu crées du contenu."
-      >
+      <Field label="Ta niche" hint="Le domaine sur lequel tu crées du contenu.">
         <input
           type="text"
           value={form.niche}
@@ -151,10 +145,7 @@ export default function OnboardingPage() {
           autoFocus
         />
       </Field>
-      <Field
-        label="Ton audience cible"
-        hint="Décris le profil de tes lecteurs idéaux."
-      >
+      <Field label="Ton audience cible" hint="Décris le profil de tes lecteurs idéaux.">
         <input
           type="text"
           value={form.target_audience}
@@ -173,8 +164,8 @@ export default function OnboardingPage() {
               className={cn(
                 "flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all",
                 form.posting_frequency === value
-                  ? "bg-brand-600/20 border-brand-500/50 text-brand-300"
-                  : "bg-white/5 border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600"
+                  ? "bg-brand-50 border-brand-300 text-brand-700"
+                  : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:border-zinc-300"
               )}
             >
               {label}
@@ -186,10 +177,7 @@ export default function OnboardingPage() {
 
     // Step 2 — Ton style
     <div key="step2" className="space-y-5">
-      <Field
-        label="Ton de voix"
-        hint="Comment tu t'exprimes dans tes posts."
-      >
+      <Field label="Ton de voix" hint="Comment tu t'exprimes dans tes posts.">
         <input
           type="text"
           value={form.tone}
@@ -211,16 +199,14 @@ export default function OnboardingPage() {
                 className={cn(
                   "flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm border transition-all text-left",
                   active
-                    ? "bg-brand-600/20 border-brand-500/50 text-brand-300"
-                    : "bg-white/5 border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600"
+                    ? "bg-brand-50 border-brand-300 text-brand-700"
+                    : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:border-zinc-300"
                 )}
               >
                 <span
                   className={cn(
                     "flex items-center justify-center w-4 h-4 rounded-full border shrink-0 transition-all",
-                    active
-                      ? "bg-brand-600 border-brand-500"
-                      : "border-gray-600"
+                    active ? "bg-brand-500 border-brand-500" : "border-zinc-300"
                   )}
                 >
                   {active && <Check size={10} className="text-white" strokeWidth={3} />}
@@ -252,12 +238,12 @@ export default function OnboardingPage() {
   ];
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12">
       <div className="w-full max-w-lg">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center shadow-xl shadow-brand-900/40">
-            <Sparkles size={22} className="text-white" />
+          <div className="w-12 h-12 rounded-2xl bg-brand-500 flex items-center justify-center shadow-lg">
+            <Zap size={22} className="text-white" fill="currentColor" />
           </div>
         </div>
 
@@ -270,10 +256,10 @@ export default function OnboardingPage() {
                   className={cn(
                     "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all",
                     i < step
-                      ? "bg-brand-600 border-brand-600 text-white"
+                      ? "bg-brand-500 border-brand-500 text-white"
                       : i === step
-                      ? "border-brand-500 text-brand-400 bg-brand-600/10"
-                      : "border-gray-700 text-gray-600 bg-transparent"
+                      ? "border-brand-400 text-brand-600 bg-brand-50"
+                      : "border-zinc-200 text-zinc-400 bg-white"
                   )}
                 >
                   {i < step ? <Check size={14} strokeWidth={2.5} /> : i + 1}
@@ -281,7 +267,7 @@ export default function OnboardingPage() {
                 <span
                   className={cn(
                     "text-xs font-medium whitespace-nowrap",
-                    i === step ? "text-gray-300" : "text-gray-600"
+                    i === step ? "text-zinc-700" : "text-zinc-400"
                   )}
                 >
                   {label}
@@ -291,7 +277,7 @@ export default function OnboardingPage() {
                 <div
                   className={cn(
                     "w-20 h-px mx-2 mb-5 transition-all",
-                    i < step ? "bg-brand-600" : "bg-gray-800"
+                    i < step ? "bg-brand-400" : "bg-zinc-200"
                   )}
                 />
               )}
@@ -300,11 +286,9 @@ export default function OnboardingPage() {
         </div>
 
         {/* Card */}
-        <div className="glass rounded-2xl p-7 shadow-2xl">
-          <h2 className="text-lg font-semibold text-white mb-1">
-            {STEPS[step]}
-          </h2>
-          <p className="text-sm text-gray-500 mb-6">
+        <div className="card p-7">
+          <h2 className="text-lg font-semibold text-zinc-900 mb-1">{STEPS[step]}</h2>
+          <p className="text-sm text-zinc-400 mb-6">
             {step === 0 && "Définis ton positionnement pour personnaliser l'agent."}
             {step === 1 && "L'agent adaptera le ton et les formats à tes ambitions."}
             {step === 2 && "Ces infos seront injectées dans chaque génération de contenu."}
@@ -313,7 +297,7 @@ export default function OnboardingPage() {
           {stepContent[step]}
 
           {error && (
-            <p className="mt-4 text-sm text-red-400 text-center">{error}</p>
+            <p className="mt-4 text-sm text-red-500 text-center">{error}</p>
           )}
 
           {/* Navigation */}
@@ -322,7 +306,7 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 onClick={() => setStep(step - 1)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 border border-gray-700 hover:border-gray-600 hover:bg-white/5 transition-all"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-zinc-500 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all"
               >
                 <ChevronLeft size={15} />
                 Retour
@@ -335,11 +319,7 @@ export default function OnboardingPage() {
                 if (step < STEPS.length - 1) setStep(step + 1);
                 else handleSubmit();
               }}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all",
-                "bg-brand-600 hover:bg-brand-500 text-white",
-                "disabled:opacity-50 disabled:cursor-not-allowed"
-              )}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
                 <>
@@ -361,8 +341,7 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {/* Step counter */}
-        <p className="text-center text-xs text-gray-700 mt-4">
+        <p className="text-center text-xs text-zinc-300 mt-4">
           Étape {step + 1} sur {STEPS.length}
         </p>
       </div>

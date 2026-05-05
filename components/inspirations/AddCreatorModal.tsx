@@ -18,16 +18,16 @@ const CATEGORIES: { value: Category; label: string }[] = [
 ];
 
 const inputCls = cn(
-  "w-full bg-white/5 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600",
-  "focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/40 transition-all"
+  "w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400",
+  "focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-all"
 );
 
 export function AddCreatorModal({ open, onClose, onAdd }: Props) {
-  const [name, setName] = useState("");
+  const [name,        setName]        = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
-  const [category, setCategory] = useState<Category>("top_creator");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [category,    setCategory]    = useState<Category>("top_creator");
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
 
   if (!open) return null;
 
@@ -71,21 +71,21 @@ export function AddCreatorModal({ open, onClose, onAdd }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="bg-white border border-zinc-200 rounded-2xl w-full max-w-md shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-800">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-brand-600/20 border border-brand-500/30 flex items-center justify-center">
-              <UserPlus size={17} className="text-brand-400" />
+            <div className="w-9 h-9 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center">
+              <UserPlus size={17} className="text-brand-600" />
             </div>
-            <h2 className="font-semibold text-white">Ajouter un créateur</h2>
+            <h2 className="font-semibold text-zinc-900">Ajouter un créateur</h2>
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
           >
             <X size={17} />
           </button>
@@ -95,7 +95,7 @@ export function AddCreatorModal({ open, onClose, onAdd }: Props) {
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
+            <label className="block text-xs font-semibold text-zinc-500 mb-1.5 uppercase tracking-wide">
               Nom du créateur
             </label>
             <input
@@ -110,7 +110,7 @@ export function AddCreatorModal({ open, onClose, onAdd }: Props) {
 
           {/* LinkedIn URL */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
+            <label className="block text-xs font-semibold text-zinc-500 mb-1.5 uppercase tracking-wide">
               URL LinkedIn
             </label>
             <input
@@ -124,34 +124,31 @@ export function AddCreatorModal({ open, onClose, onAdd }: Props) {
 
           {/* Category */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
+            <label className="block text-xs font-semibold text-zinc-500 mb-1.5 uppercase tracking-wide">
               Catégorie
             </label>
             <div className="relative">
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as Category)}
-                className={cn(
-                  inputCls,
-                  "appearance-none cursor-pointer pr-9"
-                )}
+                className={cn(inputCls, "appearance-none cursor-pointer pr-9")}
               >
                 {CATEGORIES.map(({ value, label }) => (
-                  <option key={value} value={value} className="bg-gray-900">
+                  <option key={value} value={value}>
                     {label}
                   </option>
                 ))}
               </select>
               <ChevronDown
                 size={15}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"
               />
             </div>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="flex items-start gap-2.5 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
+            <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               {error}
             </div>
@@ -162,14 +159,14 @@ export function AddCreatorModal({ open, onClose, onAdd }: Props) {
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 border border-gray-700 hover:border-gray-600 hover:bg-white/5 transition-all"
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-zinc-500 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-500 text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <><Loader2 size={14} className="animate-spin" />Ajout…</>
