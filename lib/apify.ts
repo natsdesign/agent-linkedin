@@ -32,11 +32,11 @@ function mapItems(items: Record<string, unknown>[]): ScrapedLinkedInPost[] {
   return items
     .map((item): ScrapedLinkedInPost => ({
       content:     str(item, "text", "content", "postText", "body"),
-      publishedAt: str(item, "publishedAt", "postedAt", "date", "createdAt") || null,
-      likes:    num(item, "likeCount",    "numLikes",    "likes",    "likesCount"),
-      comments: num(item, "commentCount", "numComments", "comments", "commentsCount"),
-      shares:   num(item, "repostCount",  "shareCount",  "shares",   "sharesCount", "numShares"),
-      postUrl:  str(item, "url", "shareUrl", "postUrl", "link") || null,
+      publishedAt: str(item, "postedAt", "publishedAt", "date", "createdAt") || null,
+      likes:    num(item, "likes",    "likeCount",    "numLikes",    "likesCount"),
+      comments: num(item, "comments", "commentCount", "numComments", "commentsCount"),
+      shares:   num(item, "shares",   "repostCount",  "shareCount",  "sharesCount", "numShares"),
+      postUrl:  str(item, "url", "postUrl", "shareUrl", "link") || null,
     }))
     .filter((p) => p.content.trim().length > 0);
 }
@@ -45,8 +45,8 @@ function mapItems(items: Record<string, unknown>[]): ScrapedLinkedInPost[] {
 export async function scrapeLinkedInPosts(
   linkedinUrl: string
 ): Promise<ScrapedLinkedInPost[]> {
-  const run = await client.actor("apify/linkedin-post-scraper").call(
-    { profileUrls: [linkedinUrl], maxPosts: 30 },
+  const run = await client.actor("harvestapi/linkedin-profile-posts").call(
+    { urls: [{ url: linkedinUrl }], maxPosts: 30 },
     { waitSecs: 120 }
   );
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
@@ -55,8 +55,8 @@ export async function scrapeLinkedInPosts(
 
 // Async scrape — starts the Apify run and returns immediately
 export async function startScraping(linkedinUrl: string): Promise<string> {
-  const run = await client.actor("apify/linkedin-post-scraper").start({
-    profileUrls: [linkedinUrl],
+  const run = await client.actor("harvestapi/linkedin-profile-posts").start({
+    urls: [{ url: linkedinUrl }],
     maxPosts: 30,
   });
   return run.id;
