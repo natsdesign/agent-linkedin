@@ -28,22 +28,10 @@ function num(obj: Record<string, unknown>, ...keys: string[]): number {
   return 0;
 }
 
-export async function scrapeLinkedInPosts(
-  linkedinUrl: string
-): Promise<ScrapedLinkedInPost[]> {
-  const run = await client.actor("apify/linkedin-post-scraper").call(
-    {
-      profileUrls: [linkedinUrl],
-      maxPosts: 30,
-    },
-    { waitSecs: 120 }
-  );
-
-  const { items } = await client.dataset(run.defaultDatasetId).listItems();
-
-  return (items as Record<string, unknown>[])
+function mapItems(items: Record<string, unknown>[]): ScrapedLinkedInPost[] {
+  return items
     .map((item): ScrapedLinkedInPost => ({
-      content: str(item, "text", "content", "postText", "body"),
+      content:     str(item, "text", "content", "postText", "body"),
       publishedAt: str(item, "publishedAt", "postedAt", "date", "createdAt") || null,
       likes:    num(item, "likeCount",    "numLikes",    "likes",    "likesCount"),
       comments: num(item, "commentCount", "numComments", "comments", "commentsCount"),
@@ -51,4 +39,37 @@ export async function scrapeLinkedInPosts(
       postUrl:  str(item, "url", "shareUrl", "postUrl", "link") || null,
     }))
     .filter((p) => p.content.trim().length > 0);
+}
+
+// Synchronous scrape — used by the daily cron (long-running server context)
+export async function scrapeLinkedInPosts(
+  linkedinUrl: string
+): Promise<ScrapedLinkedInPost[]> {
+  const run = await client.actor("apify/linkedin-post-scraper").call(
+    { profileUrls: [linkedinUrl], maxPosts: 30 },
+    { waitSecs: 120 }
+  );
+  const { items } = await client.dataset(run.defaultDatasetId).listItems();
+  return mapItems(items as Record<string, unknown>[]);
+}
+
+// Async scrape — starts the Apify run and returns immediately
+export async function startScraping(linkedinUrl: string): Promise<string> {
+  const run = await client.actor("apify/linkedin-post-scraper").start({
+    profileUrls: [linkedinUrl],
+    maxPosts: 30,
+  });
+  return run.id;
+}
+
+// Poll run status — returns posts when done, null if still running
+export async function getScrapingResults(
+  runId: string
+): Promise<ScrapedLinkedInPost[] | null> {
+  const run = await client.run(runId).get();
+  if (!run) return null;
+  if (run.status === "RUNNING" || run.status === "READY") return null;
+  if (run.status !== "SUCCEEDED") return []; // FAILED / ABORTED / TIMED-OUT
+  const { items } = await client.dataset(run.defaultDatasetId).listItems();
+  return mapItems(items as Record<string, unknown>[]);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
   MoreVertical,
@@ -71,11 +71,11 @@ export function CreatorCard({ creator, onDelete }: Props) {
   const { showToast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scraping, setScraping] = useState(false);
+  const [runId, setRunId] = useState<string | null>(null);
   const [local, setLocal] = useState<LocalState>({
     last_scraped_at: creator.last_scraped_at,
     post_count: creator.post_count,
   });
-  const prevScrapedAt = useRef(creator.last_scraped_at);
 
   // Sync parent data when not actively scraping
   useEffect(() => {
@@ -84,42 +84,50 @@ export function CreatorCard({ creator, onDelete }: Props) {
     }
   }, [creator.last_scraped_at, creator.post_count, scraping]);
 
-  // Poll status every 5s while scraping
+  // Poll scrape-status every 10s while a runId is active
   useEffect(() => {
-    if (!scraping) return;
+    if (!runId) return;
 
     const timer = setInterval(async () => {
       try {
-        const res = await fetch(`/api/creators/${creator.id}/status`);
-        if (!res.ok) return;
-        const data: { last_scraped_at: string | null; post_count: number } = await res.json();
+        const res = await fetch(
+          `/api/creators/${creator.id}/scrape-status?runId=${runId}`
+        );
+        if (!res.ok) { setScraping(false); setRunId(null); return; }
 
-        const changed =
-          data.last_scraped_at !== null &&
-          data.last_scraped_at !== prevScrapedAt.current;
-
-        if (changed) {
-          setLocal({ last_scraped_at: data.last_scraped_at, post_count: data.post_count });
+        const data: { done: boolean } = await res.json();
+        if (data.done) {
+          // Fetch fresh counts from DB
+          const statusRes = await fetch(`/api/creators/${creator.id}/status`);
+          if (statusRes.ok) {
+            const status: { last_scraped_at: string | null; post_count: number } =
+              await statusRes.json();
+            setLocal({ last_scraped_at: status.last_scraped_at, post_count: status.post_count });
+          }
           setScraping(false);
+          setRunId(null);
         }
       } catch {
         // silently ignore poll errors
       }
-    }, 5000);
+    }, 10000);
 
     return () => clearInterval(timer);
-  }, [scraping, creator.id]);
+  }, [runId, creator.id]);
 
   async function handleScrape() {
-    prevScrapedAt.current = local.last_scraped_at;
     setScraping(true);
     setMenuOpen(false);
     showToast("Scraping lancé");
 
-    // Fire-and-forget — polling detects completion via last_scraped_at change
-    fetch(`/api/creators/${creator.id}/scrape`, { method: "POST" })
-      .then((res) => { if (!res.ok) setScraping(false); })
-      .catch(() => setScraping(false));
+    try {
+      const res = await fetch(`/api/creators/${creator.id}/scrape`, { method: "POST" });
+      if (!res.ok) { setScraping(false); return; }
+      const data: { runId: string } = await res.json();
+      setRunId(data.runId);
+    } catch {
+      setScraping(false);
+    }
   }
 
   const badge = creator.category ? CATEGORY_CONFIG[creator.category] : null;
