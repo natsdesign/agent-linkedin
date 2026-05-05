@@ -22,11 +22,9 @@ function logUsage(
   output_tokens: number
 ) {
   const cost_usd = calcCost(model, input_tokens, output_tokens);
-  createClient()
+  void createClient()
     .from("usage_logs")
-    .insert({ action, model, input_tokens, output_tokens, cost_usd })
-    .then(() => {})
-    .catch(() => {});
+    .insert({ action, model, input_tokens, output_tokens, cost_usd });
 }
 
 // ─── Strip markdown fences ────────────────────────────────────────────────────

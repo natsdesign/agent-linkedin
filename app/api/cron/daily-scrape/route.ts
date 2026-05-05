@@ -43,12 +43,12 @@ export async function GET(req: NextRequest) {
       const scrapedPosts = await scrapeLinkedInPosts(creator.linkedin_url);
 
       // Log Apify run
-      supabase.from("apify_runs").insert({
-        creator_id:   creator.id,
-        run_id:       `cron-${Date.now()}-${creator.id}`,
+      void supabase.from("apify_runs").insert({
+        creator_id:    creator.id,
+        run_id:        `cron-${Date.now()}-${creator.id}`,
         posts_scraped: scrapedPosts.length,
-        cost_usd:     0.002,
-      }).then(() => {}).catch(() => {});
+        cost_usd:      0.002,
+      });
 
       if (scrapedPosts.length === 0) {
         await supabase

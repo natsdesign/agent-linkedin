@@ -21,12 +21,12 @@ export async function POST(_req: NextRequest, { params }: Params) {
     const runId = await startScraping(creator.linkedin_url);
 
     // Log Apify run (fire and forget)
-    supabase.from("apify_runs").insert({
+    void supabase.from("apify_runs").insert({
       creator_id: params.id,
       run_id: runId,
       posts_scraped: 0,
       cost_usd: 0.002,
-    }).then(() => {}).catch(() => {});
+    });
 
     return NextResponse.json({ status: "started", runId });
   } catch (error) {

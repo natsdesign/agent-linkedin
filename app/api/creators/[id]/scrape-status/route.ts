@@ -90,11 +90,10 @@ export async function GET(req: NextRequest, { params }: Params) {
     .eq("id", params.id);
 
   // Update apify run with actual posts count (fire and forget)
-  supabase
+  void supabase
     .from("apify_runs")
     .update({ posts_scraped: newPosts.length })
-    .eq("run_id", runId)
-    .then(() => {}).catch(() => {});
+    .eq("run_id", runId);
 
   // Non-blocking insights refresh
   refreshInsights().catch(console.error);
