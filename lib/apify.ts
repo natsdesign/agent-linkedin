@@ -46,7 +46,7 @@ export async function scrapeLinkedInPosts(
   linkedinUrl: string
 ): Promise<ScrapedLinkedInPost[]> {
   const run = await client.actor("harvestapi/linkedin-profile-posts").call(
-    { urls: [linkedinUrl], maxPosts: 30 },
+    { targetUrls: [linkedinUrl], maxPosts: 30, includeQuotePosts: true, includeReposts: false, scrapeComments: false, scrapeReactions: false },
     { waitSecs: 120 }
   );
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
@@ -56,8 +56,12 @@ export async function scrapeLinkedInPosts(
 // Async scrape — starts the Apify run and returns immediately
 export async function startScraping(linkedinUrl: string): Promise<string> {
   const run = await client.actor("harvestapi/linkedin-profile-posts").start({
-    urls: [linkedinUrl],
+    targetUrls: [linkedinUrl],
     maxPosts: 30,
+    includeQuotePosts: true,
+    includeReposts: false,
+    scrapeComments: false,
+    scrapeReactions: false,
   });
   return run.id;
 }
