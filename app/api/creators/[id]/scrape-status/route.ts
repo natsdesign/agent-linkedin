@@ -12,9 +12,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "runId manquant" }, { status: 400 });
   }
 
+  console.log("Poll reçu, runId:", runId);
+
   let scrapedPosts;
   try {
     scrapedPosts = await getScrapingResults(runId);
+    console.log("Résultats Apify:", scrapedPosts ? scrapedPosts.length : "null");
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Erreur Apify" },

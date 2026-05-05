@@ -72,8 +72,10 @@ export async function getScrapingResults(
 ): Promise<ScrapedLinkedInPost[] | null> {
   const run = await client.run(runId).get();
   if (!run) return null;
+  console.log("Status du run:", run.status);
   if (run.status === "RUNNING" || run.status === "READY") return null;
   if (run.status !== "SUCCEEDED") return []; // FAILED / ABORTED / TIMED-OUT
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
+  console.log("Items trouvés:", items.length);
   return mapItems(items as Record<string, unknown>[]);
 }
