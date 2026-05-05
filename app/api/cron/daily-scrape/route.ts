@@ -40,8 +40,15 @@ export async function GET(req: NextRequest) {
 
   for (const creator of due) {
     try {
-      // Scrape via Apify
       const scrapedPosts = await scrapeLinkedInPosts(creator.linkedin_url);
+
+      // Log Apify run
+      supabase.from("apify_runs").insert({
+        creator_id:   creator.id,
+        run_id:       `cron-${Date.now()}-${creator.id}`,
+        posts_scraped: scrapedPosts.length,
+        cost_usd:     0.002,
+      }).then(() => {}).catch(() => {});
 
       if (scrapedPosts.length === 0) {
         await supabase
@@ -67,7 +74,7 @@ export async function GET(req: NextRequest) {
       );
 
       if (newPosts.length > 0) {
-        // Analyze with Claude Haiku (parallel)
+        // Analyze with Claude Haiku (parallel — usage logged inside analyzePost)
         const analyses = await Promise.all(
           newPosts.map((p) => analyzePost(p.content).catch(() => null))
         );
@@ -75,16 +82,16 @@ export async function GET(req: NextRequest) {
         const rows = newPosts.map((p, i) => {
           const a = analyses[i];
           return {
-            creator_id: creator.id,
-            content: p.content,
+            creator_id:   creator.id,
+            content:      p.content,
             published_at: p.publishedAt,
-            likes: p.likes,
-            comments: p.comments,
-            shares: p.shares,
-            post_url: p.postUrl,
-            hook_type: a?.hook_type ?? null,
-            format: a?.format ?? null,
-            themes: a?.themes ?? [],
+            likes:        p.likes,
+            comments:     p.comments,
+            shares:       p.shares,
+            post_url:     p.postUrl,
+            hook_type:    a?.hook_type ?? null,
+            format:       a?.format ?? null,
+            themes:       a?.themes ?? [],
           };
         });
 
@@ -92,7 +99,6 @@ export async function GET(req: NextRequest) {
         totalPostsAdded += newPosts.length;
       }
 
-      // Update last_scraped_at
       await supabase
         .from("creators")
         .update({ last_scraped_at: new Date().toISOString() })
@@ -102,8 +108,8 @@ export async function GET(req: NextRequest) {
     } catch (err) {
       errors.push({
         creator_id: creator.id,
-        name: creator.name,
-        error: err instanceof Error ? err.message : "Unknown error",
+        name:       creator.name,
+        error:      err instanceof Error ? err.message : "Unknown error",
       });
     }
   }
@@ -113,10 +119,9 @@ export async function GET(req: NextRequest) {
     await refreshInsights().catch(console.error);
   }
 
-  // Log this run
   await supabase.from("cron_logs").insert({
     creators_scraped: creatorsScraped,
-    posts_added: totalPostsAdded,
+    posts_added:      totalPostsAdded,
     errors,
   });
 

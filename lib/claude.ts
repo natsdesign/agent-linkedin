@@ -1,10 +1,35 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { createClient } from "@/lib/supabase/server";
 
 export const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Cost helpers ──────────────────────────────────────────────────────────────
+
+function calcCost(model: string, input: number, output: number): number {
+  if (model.includes("haiku")) {
+    return (input * 0.80 + output * 4.00) / 1_000_000;
+  }
+  // sonnet
+  return (input * 3.00 + output * 15.00) / 1_000_000;
+}
+
+function logUsage(
+  action: string,
+  model: string,
+  input_tokens: number,
+  output_tokens: number
+) {
+  const cost_usd = calcCost(model, input_tokens, output_tokens);
+  createClient()
+    .from("usage_logs")
+    .insert({ action, model, input_tokens, output_tokens, cost_usd })
+    .then(() => {})
+    .catch(() => {});
+}
+
+// ─── Strip markdown fences ────────────────────────────────────────────────────
 
 function stripFences(text: string): string {
   return text
@@ -30,15 +55,20 @@ const ANALYSIS_FALLBACK: PostAnalysis = {
   engagement_prediction: "medium",
 };
 
+const HAIKU = "claude-haiku-4-5-20251001";
+const SONNET = "claude-sonnet-4-6";
+
 export async function analyzePost(content: string): Promise<PostAnalysis> {
   const message = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
+    model: HAIKU,
     max_tokens: 150,
     system: `Analyze a LinkedIn post. Return ONLY a raw JSON object — no markdown, no explanation:
 {"hook_type":"question"|"chiffre"|"statement"|"storytelling"|"liste","format":"texte"|"liste"|"storytelling"|"carrousel"|"court","themes":["theme1","theme2"],"engagement_prediction":"low"|"medium"|"high"}
 themes: max 3 short strings in the post language.`,
     messages: [{ role: "user", content }],
   });
+
+  logUsage("analyze", HAIKU, message.usage.input_tokens, message.usage.output_tokens);
 
   const raw = message.content[0].type === "text" ? message.content[0].text : "";
   try {
@@ -81,11 +111,11 @@ export async function generatePosts(params: {
   const { subjects, tone, count, format, profile, insights } = params;
 
   const profileBlock = [
-    profile.niche             && `- Niche : ${profile.niche}`,
-    profile.target_audience   && `- Audience cible : ${profile.target_audience}`,
-    profile.tone              && `- Ton habituel : ${profile.tone}`,
-    profile.goals?.length     && `- Objectifs : ${profile.goals.join(", ")}`,
-    profile.context           && `- Contexte : ${profile.context}`,
+    profile.niche           && `- Niche : ${profile.niche}`,
+    profile.target_audience && `- Audience cible : ${profile.target_audience}`,
+    profile.tone            && `- Ton habituel : ${profile.tone}`,
+    profile.goals?.length   && `- Objectifs : ${profile.goals.join(", ")}`,
+    profile.context         && `- Contexte : ${profile.context}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -95,7 +125,7 @@ export async function generatePosts(params: {
   const formatsStr = insights.best_formats.map((f) => f.value).join(", ") || "texte";
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+    model: SONNET,
     max_tokens: 4000,
     system: `Tu es un ghostwriter LinkedIn expert. Tu génères des posts LinkedIn percutants et authentiques en français.
 IMPORTANT : Réponds UNIQUEMENT avec un tableau JSON valide, sans markdown, sans explication.
@@ -128,6 +158,8 @@ Retourne exactement ${count} objets dans ce tableau JSON :
     ],
   });
 
+  logUsage("generate", SONNET, message.usage.input_tokens, message.usage.output_tokens);
+
   const raw = message.content[0].type === "text" ? message.content[0].text : "[]";
 
   try {
@@ -150,7 +182,7 @@ export async function regenerateSinglePost(params: {
   const { currentContent, subject, tone, format } = params;
 
   const message = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
+    model: HAIKU,
     max_tokens: 800,
     system: `Tu es un ghostwriter LinkedIn. Réponds UNIQUEMENT avec un objet JSON valide, sans markdown :
 {"content":"...","hook":"...","cta":"...","subject":"...","format":"..."}`,
@@ -165,6 +197,8 @@ ${currentContent}`,
       },
     ],
   });
+
+  logUsage("regenerate", HAIKU, message.usage.input_tokens, message.usage.output_tokens);
 
   const raw = message.content[0].type === "text" ? message.content[0].text : "{}";
 
@@ -184,14 +218,14 @@ export async function generatePost(params: {
 }): Promise<string> {
   const profileLines = params.profile
     ? [
-        params.profile.niche            && `Niche: ${params.profile.niche}`,
-        params.profile.target_audience  && `Audience: ${params.profile.target_audience}`,
-        params.profile.context          && `Context: ${params.profile.context}`,
+        params.profile.niche           && `Niche: ${params.profile.niche}`,
+        params.profile.target_audience && `Audience: ${params.profile.target_audience}`,
+        params.profile.context         && `Context: ${params.profile.context}`,
       ].filter(Boolean).join("\n")
     : "";
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+    model: SONNET,
     max_tokens: 1024,
     system: `You are an expert LinkedIn ghostwriter. Write compelling, authentic posts that drive engagement.
 Use line breaks for readability, a strong opening hook, and a clear call to action when relevant.`,
@@ -202,6 +236,8 @@ Use line breaks for readability, a strong opening hook, and a clear call to acti
       },
     ],
   });
+
+  logUsage("generate", SONNET, message.usage.input_tokens, message.usage.output_tokens);
 
   return message.content[0].type === "text" ? message.content[0].text : "";
 }

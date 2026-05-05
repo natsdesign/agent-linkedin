@@ -12,12 +12,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "runId manquant" }, { status: 400 });
   }
 
-  console.log("Poll reçu, runId:", runId);
-
   let scrapedPosts;
   try {
     scrapedPosts = await getScrapingResults(runId);
-    console.log("Résultats Apify:", scrapedPosts ? scrapedPosts.length : "null");
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Erreur Apify" },
@@ -32,7 +29,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const supabase = createClient();
 
-  // Run finished but no posts (failed/aborted/empty) — mark scraped and stop
+  // Run finished but no posts (failed/aborted/empty)
   if (scrapedPosts.length === 0) {
     await supabase
       .from("creators")
@@ -63,7 +60,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ done: true, count: 0 });
   }
 
-  // Analyze with Claude Haiku (parallel)
+  // Analyze with Claude Haiku (parallel — usage logged inside analyzePost)
   const analyses = await Promise.all(
     newPosts.map((p) => analyzePost(p.content).catch(() => null))
   );
@@ -72,16 +69,16 @@ export async function GET(req: NextRequest, { params }: Params) {
   const rows = newPosts.map((p, i) => {
     const a = analyses[i];
     return {
-      creator_id: params.id,
-      content: p.content,
+      creator_id:   params.id,
+      content:      p.content,
       published_at: p.publishedAt,
-      likes: p.likes,
-      comments: p.comments,
-      shares: p.shares,
-      post_url: p.postUrl,
-      hook_type: a?.hook_type ?? null,
-      format: a?.format ?? null,
-      themes: a?.themes ?? [],
+      likes:        p.likes,
+      comments:     p.comments,
+      shares:       p.shares,
+      post_url:     p.postUrl,
+      hook_type:    a?.hook_type ?? null,
+      format:       a?.format ?? null,
+      themes:       a?.themes ?? [],
     };
   });
 
@@ -91,6 +88,13 @@ export async function GET(req: NextRequest, { params }: Params) {
     .from("creators")
     .update({ last_scraped_at: new Date().toISOString() })
     .eq("id", params.id);
+
+  // Update apify run with actual posts count (fire and forget)
+  supabase
+    .from("apify_runs")
+    .update({ posts_scraped: newPosts.length })
+    .eq("run_id", runId)
+    .then(() => {}).catch(() => {});
 
   // Non-blocking insights refresh
   refreshInsights().catch(console.error);

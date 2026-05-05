@@ -6,8 +6,6 @@ type Params = { params: { id: string } };
 
 export async function POST(_req: NextRequest, { params }: Params) {
   try {
-    console.log("1. Début scrape pour:", params.id);
-
     const supabase = createClient();
 
     const { data: creator, error } = await supabase
@@ -20,17 +18,19 @@ export async function POST(_req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Créateur introuvable." }, { status: 404 });
     }
 
-    console.log("2. Créateur trouvé:", creator.linkedin_url);
-    console.log("3. Lancement Apify...");
-
     const runId = await startScraping(creator.linkedin_url);
 
-    console.log("4. Run Apify lancé, runId:", runId);
+    // Log Apify run (fire and forget)
+    supabase.from("apify_runs").insert({
+      creator_id: params.id,
+      run_id: runId,
+      posts_scraped: 0,
+      cost_usd: 0.002,
+    }).then(() => {}).catch(() => {});
 
     return NextResponse.json({ status: "started", runId });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    console.error("SCRAPE ERROR:", err.message, err.stack);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
