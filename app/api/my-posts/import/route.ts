@@ -23,6 +23,7 @@ export async function POST() {
 
   // Scrape (synchronous, up to 120s)
   const posts = await scrapeLinkedInPosts(linkedinUrl);
+  console.log('SAMPLE ITEM:', JSON.stringify(posts[0], null, 2))
   if (posts.length === 0) {
     return NextResponse.json({ count: 0 });
   }
