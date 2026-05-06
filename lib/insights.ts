@@ -32,7 +32,8 @@ export async function refreshInsights(): Promise<void> {
   // Fetch all analyzed posts
   const { data: posts, error } = await supabase
     .from("scraped_posts")
-    .select("hook_type, format, themes");
+    .select("hook_type, format, themes")
+    .limit(1000);
 
   if (error || !posts || posts.length === 0) return;
 
