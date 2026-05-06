@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const [creatorRes, countRes] = await Promise.all([
     supabase
       .from("creators")
-      .select("last_scraped_at")
+      .select("last_scraped_at, avatar_url")
       .eq("id", params.id)
       .single(),
     supabase
@@ -24,7 +24,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   return NextResponse.json({
     last_scraped_at: creatorRes.data?.last_scraped_at ?? null,
-    post_count: countRes.count ?? 0,
-    is_scraping: false,
+    avatar_url:      creatorRes.data?.avatar_url ?? null,
+    post_count:      countRes.count ?? 0,
+    is_scraping:     false,
   });
 }

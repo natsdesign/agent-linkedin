@@ -41,25 +41,43 @@ function nestedNum(obj: Record<string, unknown>, path: string): number {
   return typeof cur === "number" ? cur : 0;
 }
 
-// Extract the author's profile picture from the first raw item
-function extractAvatarUrl(item: Record<string, unknown>): string | null {
-  // Try direct top-level fields
-  for (const k of ["authorProfilePicture", "authorImage", "actorImage", "profilePicture", "authorAvatar", "profileImage"]) {
-    const v = item[k];
-    if (typeof v === "string" && v.startsWith("http")) return v;
+// Deep-scan any value for a LinkedIn CDN profile picture URL
+function deepScanLinkedInUrl(obj: unknown, depth = 0): string | null {
+  if (depth > 6) return null;
+  if (typeof obj === "string") {
+    if ((obj.includes("licdn.com") || obj.includes("linkedin.com/dms")) && obj.startsWith("http")) return obj;
+    return null;
   }
-  // Try nested author / actor objects
-  for (const parentKey of ["author", "actor"]) {
-    const parent = item[parentKey];
-    if (parent && typeof parent === "object") {
-      const obj = parent as Record<string, unknown>;
-      for (const k of ["profilePicture", "image", "avatar", "picture", "photo", "profileImage"]) {
-        const v = obj[k];
-        if (typeof v === "string" && v.startsWith("http")) return v;
+  if (Array.isArray(obj)) {
+    for (const item of obj.slice(0, 20)) {
+      const found = deepScanLinkedInUrl(item, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (obj != null && typeof obj === "object") {
+    const rec = obj as Record<string, unknown>;
+    // Priority keys checked first
+    const priority = ["profilePicture", "authorImage", "authorProfilePicture", "actorImage",
+      "image", "avatar", "picture", "photo", "profileImage", "authorAvatar", "img", "src"];
+    for (const k of priority) {
+      if (k in rec) {
+        const found = deepScanLinkedInUrl(rec[k], depth + 1);
+        if (found) return found;
+      }
+    }
+    for (const [k, v] of Object.entries(rec)) {
+      if (!priority.includes(k)) {
+        const found = deepScanLinkedInUrl(v, depth + 1);
+        if (found) return found;
       }
     }
   }
   return null;
+}
+
+function extractAvatarUrl(item: Record<string, unknown>): string | null {
+  return deepScanLinkedInUrl(item);
 }
 
 function mapItems(items: Record<string, unknown>[]): ScrapedLinkedInPost[] {

@@ -70,16 +70,18 @@ function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null })
 type LocalState = {
   last_scraped_at: string | null;
   post_count: number;
+  avatar_url: string | null;
 };
 
 type Props = {
   creator: CreatorWithCount;
   onDelete: (id: string) => void;
+  onScrapeDone?: (update: { last_scraped_at: string | null; post_count: number; avatar_url: string | null }) => void;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function CreatorCard({ creator, onDelete }: Props) {
+export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
   const { showToast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scraping, setScraping] = useState(false);
@@ -87,13 +89,14 @@ export function CreatorCard({ creator, onDelete }: Props) {
   const [local,    setLocal]    = useState<LocalState>({
     last_scraped_at: creator.last_scraped_at,
     post_count:      creator.post_count,
+    avatar_url:      creator.avatar_url,
   });
 
   useEffect(() => {
     if (!scraping) {
-      setLocal({ last_scraped_at: creator.last_scraped_at, post_count: creator.post_count });
+      setLocal({ last_scraped_at: creator.last_scraped_at, post_count: creator.post_count, avatar_url: creator.avatar_url });
     }
-  }, [creator.last_scraped_at, creator.post_count, scraping]);
+  }, [creator.last_scraped_at, creator.post_count, creator.avatar_url, scraping]);
 
   useEffect(() => {
     if (!runId) return;
@@ -103,20 +106,22 @@ export function CreatorCard({ creator, onDelete }: Props) {
         const res = await fetch(`/api/creators/${creator.id}/scrape-status?runId=${runId}`);
         if (!res.ok) { setScraping(false); setRunId(null); return; }
 
-        const data: { done: boolean } = await res.json();
+        const data: { done: boolean; count?: number } = await res.json();
         if (data.done) {
           const statusRes = await fetch(`/api/creators/${creator.id}/status`);
           if (statusRes.ok) {
-            const status: { last_scraped_at: string | null; post_count: number } = await statusRes.json();
-            setLocal({ last_scraped_at: status.last_scraped_at, post_count: status.post_count });
+            const status: { last_scraped_at: string | null; post_count: number; avatar_url: string | null } = await statusRes.json();
+            setLocal({ last_scraped_at: status.last_scraped_at, post_count: status.post_count, avatar_url: status.avatar_url });
+            onScrapeDone?.({ last_scraped_at: status.last_scraped_at, post_count: status.post_count, avatar_url: status.avatar_url });
           }
+          showToast(`Scraping terminé — ${data.count ?? 0} nouveau${(data.count ?? 0) !== 1 ? "x" : ""} post${(data.count ?? 0) !== 1 ? "s" : ""}`);
           setScraping(false);
           setRunId(null);
         }
       } catch {
         // ignore poll errors
       }
-    }, 10000);
+    }, 5000);
 
     return () => clearInterval(timer);
   }, [runId, creator.id]);
@@ -141,7 +146,7 @@ export function CreatorCard({ creator, onDelete }: Props) {
     <div className="card-hover p-4 flex flex-col gap-4 group">
       {/* Top row */}
       <div className="flex items-start gap-3">
-        <Avatar name={creator.name} avatarUrl={creator.avatar_url} />
+        <Avatar name={creator.name} avatarUrl={local.avatar_url} />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-1">

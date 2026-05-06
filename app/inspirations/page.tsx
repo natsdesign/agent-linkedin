@@ -454,6 +454,15 @@ export default function InspirationsPage() {
     setCreators((prev) => prev.filter((c) => c.id !== id));
   }
 
+  function handleScrapeDone(id: string, update: { last_scraped_at: string | null; post_count: number; avatar_url: string | null }) {
+    setCreators((prev) => prev.map((c) => c.id === id ? { ...c, ...update } : c));
+    // Refresh insights in background
+    fetch("/api/insights")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setInsights(data); })
+      .catch(() => {});
+  }
+
   const tabCounts = {
     all:         creators.length,
     competitor:  creators.filter((c) => c.category === "competitor").length,
@@ -541,7 +550,12 @@ export default function InspirationsPage() {
       ) : visible.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {visible.map((creator) => (
-            <CreatorCard key={creator.id} creator={creator} onDelete={handleDelete} />
+            <CreatorCard
+              key={creator.id}
+              creator={creator}
+              onDelete={handleDelete}
+              onScrapeDone={(update) => handleScrapeDone(creator.id, update)}
+            />
           ))}
         </div>
       ) : (
