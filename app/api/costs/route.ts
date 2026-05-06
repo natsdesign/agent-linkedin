@@ -8,10 +8,11 @@ export async function GET() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
   // ── Anthropic: all time ──
-  const { data: allLogs } = await supabase
+  const { data: allLogs, error: logsError } = await supabase
     .from("usage_logs")
     .select("cost_usd, input_tokens, output_tokens, action, model, created_at")
     .order("created_at", { ascending: false });
+  console.log("usage_logs:", allLogs, logsError);
 
   const logs = allLogs ?? [];
   const anthropic_total_usd     = logs.reduce((s, r) => s + parseFloat(String(r.cost_usd ?? 0)), 0);
@@ -31,9 +32,10 @@ export async function GET() {
   );
 
   // ── Apify: all time ──
-  const { data: allRuns } = await supabase
+  const { data: allRuns, error: runsError } = await supabase
     .from("apify_runs")
     .select("cost_usd, posts_scraped");
+  console.log("apify_runs:", allRuns, runsError);
 
   const runs = allRuns ?? [];
   const apify_runs_count    = runs.length;

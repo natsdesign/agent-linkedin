@@ -22,9 +22,12 @@ function logUsage(
   output_tokens: number
 ) {
   const cost_usd = calcCost(model, input_tokens, output_tokens);
-  void createClient()
-    .from("usage_logs")
-    .insert({ action, model, input_tokens, output_tokens, cost_usd });
+  void (async () => {
+    const { error } = await createClient()
+      .from("usage_logs")
+      .insert({ action, model, input_tokens, output_tokens, cost_usd });
+    if (error) console.error("[logUsage error]", error.message);
+  })();
 }
 
 // ─── Strip markdown fences ────────────────────────────────────────────────────

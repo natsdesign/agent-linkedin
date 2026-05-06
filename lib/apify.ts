@@ -1,4 +1,5 @@
 import { ApifyClient } from "apify-client";
+import { createClient } from "@/lib/supabase/server";
 
 const client = new ApifyClient({ token: process.env.APIFY_API_TOKEN });
 
@@ -77,5 +78,14 @@ export async function getScrapingResults(
   if (run.status !== "SUCCEEDED") return []; // FAILED / ABORTED / TIMED-OUT
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
   console.log("Items trouvés:", items.length);
-  return mapItems(items as Record<string, unknown>[]);
+  const mapped = mapItems(items as Record<string, unknown>[]);
+
+  void (async () => {
+    const { error } = await createClient()
+      .from("apify_runs")
+      .insert({ run_id: runId, posts_scraped: mapped.length, cost_usd: mapped.length * 0.002 });
+    if (error) console.error("[apify_runs insert error]", error.message);
+  })();
+
+  return mapped;
 }
