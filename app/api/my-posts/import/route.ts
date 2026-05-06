@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { scrapeLinkedInPosts } from "@/lib/apify";
 import { analyzePost } from "@/lib/claude";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const supabase = createClient();
+  const body = await req.json().catch(() => ({}));
 
   // Get linkedin_url from creator_profile
   const { data: profile } = await supabase
@@ -23,19 +24,47 @@ export async function POST() {
 
   // Scrape (synchronous, up to 120s)
   const posts = await scrapeLinkedInPosts(linkedinUrl);
-  console.log('MAPPED ITEM:', JSON.stringify(posts[0], null, 2))
+  console.log('MAPPED ITEM:', JSON.stringify(posts[0], null, 2));
+
   if (posts.length === 0) {
-    return NextResponse.json({ count: 0 });
+    return NextResponse.json({ imported: 0, skipped: 0, total: 0 });
   }
 
-  // Filter already imported urls
-  const { data: existing } = await supabase.from("my_posts").select("post_url");
+  // Fetch existing posts for deduplication + since calculation
+  const { data: existing } = await supabase
+    .from("my_posts")
+    .select("post_url, content, published_at")
+    .order("published_at", { ascending: false });
+
   const existingUrls = new Set(
     (existing ?? []).map((p: { post_url: string | null }) => p.post_url).filter(Boolean)
   );
-  const newPosts = posts.filter((p) => !p.postUrl || !existingUrls.has(p.postUrl));
+  const existingPrefixes = new Set(
+    (existing ?? []).map((p: { content: string }) => p.content.slice(0, 100))
+  );
 
-  if (newPosts.length === 0) return NextResponse.json({ count: 0 });
+  // since: from body or auto-calculated from last imported post date
+  const since: string | null =
+    body?.since ?? (existing as Array<{ published_at: string | null }> | null)?.[0]?.published_at ?? null;
+
+  // Filter by date if since is available
+  const datFiltered = since
+    ? posts.filter((p) => p.publishedAt && p.publishedAt > since)
+    : posts;
+
+  const total = datFiltered.length;
+
+  // Deduplicate by post_url OR first 100 chars of content
+  const newPosts = datFiltered.filter((p) => {
+    if (p.postUrl && existingUrls.has(p.postUrl)) return false;
+    if (existingPrefixes.has(p.content.slice(0, 100))) return false;
+    return true;
+  });
+  const skipped = total - newPosts.length;
+
+  if (newPosts.length === 0) {
+    return NextResponse.json({ imported: 0, skipped, total });
+  }
 
   // Analyze with Claude Haiku
   const analyses = await Promise.all(
@@ -44,16 +73,15 @@ export async function POST() {
 
   const rows = newPosts.map((p, i) => {
     const a = analyses[i];
-    const views = 0;
     const engagement_rate =
-      views > 0 ? ((p.likes + p.comments) / views) * 100 : null;
+      p.views > 0 ? ((p.likes + p.comments) / p.views) * 100 : null;
     return {
       content:         p.content,
       published_at:    p.publishedAt,
       likes:           p.likes,
       comments:        p.comments,
       shares:          p.shares,
-      views,
+      views:           p.views,
       engagement_rate,
       hook_type:       a?.hook_type ?? null,
       format:          a?.format ?? null,
@@ -63,5 +91,5 @@ export async function POST() {
   });
 
   await supabase.from("my_posts").insert(rows);
-  return NextResponse.json({ count: newPosts.length });
+  return NextResponse.json({ imported: newPosts.length, skipped, total });
 }

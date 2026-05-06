@@ -9,6 +9,7 @@ export type ScrapedLinkedInPost = {
   likes: number;
   comments: number;
   shares: number;
+  views: number;
   postUrl: string | null;
 };
 
@@ -29,20 +30,32 @@ function num(obj: Record<string, unknown>, ...keys: string[]): number {
   return 0;
 }
 
+// Extracts a number from a nested path like "reactions.count"
+function nestedNum(obj: Record<string, unknown>, path: string): number {
+  const parts = path.split(".");
+  let cur: unknown = obj;
+  for (const p of parts) {
+    if (cur == null || typeof cur !== "object") return 0;
+    cur = (cur as Record<string, unknown>)[p];
+  }
+  return typeof cur === "number" ? cur : 0;
+}
+
 function mapItems(items: Record<string, unknown>[]): ScrapedLinkedInPost[] {
   return items
     .map((item): ScrapedLinkedInPost => ({
       content:     str(item, "text", "content", "postText", "body"),
       publishedAt: str(item, "postedAt", "publishedAt", "date", "createdAt") || null,
-      likes:    num(item, "likes",    "likeCount",    "numLikes",    "likesCount"),
-      comments: num(item, "comments", "commentCount", "numComments", "commentsCount"),
-      shares:   num(item, "shares",   "repostCount",  "shareCount",  "sharesCount", "numShares"),
+      likes:    num(item, "likeCount", "likesCount", "numLikes", "likes") || nestedNum(item, "reactions.count"),
+      comments: num(item, "commentCount", "commentsCount", "numComments", "comments"),
+      shares:   num(item, "repostCount", "shareCount", "sharesCount", "numShares", "shares"),
+      views:    num(item, "viewCount", "impressionCount", "numImpressions", "views"),
       postUrl:  str(item, "url", "postUrl", "shareUrl", "link") || null,
     }))
     .filter((p) => p.content.trim().length > 0);
 }
 
-// Synchronous scrape — used by the daily cron (long-running server context)
+// Synchronous scrape — used by my-posts/import (long-running server context)
 export async function scrapeLinkedInPosts(
   linkedinUrl: string
 ): Promise<ScrapedLinkedInPost[]> {
@@ -52,7 +65,7 @@ export async function scrapeLinkedInPosts(
   );
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
   const rawItems = items as Record<string, unknown>[];
-  console.log('RAW APIFY ITEM:', JSON.stringify(rawItems[0], null, 2))
+  console.log('RAW APIFY ITEM:', JSON.stringify(rawItems[0], null, 2));
   return mapItems(rawItems);
 }
 
