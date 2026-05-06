@@ -89,7 +89,7 @@ export function CostDrawer({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch("/api/costs")
+    fetch("/api/costs", { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
