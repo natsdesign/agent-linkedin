@@ -12,9 +12,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "runId manquant" }, { status: 400 });
   }
 
-  let scrapedPosts;
+  let result;
   try {
-    scrapedPosts = await getScrapingResults(runId);
+    result = await getScrapingResults(runId);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Erreur Apify" },
@@ -23,17 +23,21 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
 
   // Still running
-  if (scrapedPosts === null) {
+  if (result === null) {
     return NextResponse.json({ done: false });
   }
 
+  const { posts: scrapedPosts, avatarUrl } = result;
   const supabase = createClient();
 
   // Run finished but no posts (failed/aborted/empty)
   if (scrapedPosts.length === 0) {
     await supabase
       .from("creators")
-      .update({ last_scraped_at: new Date().toISOString() })
+      .update({
+        last_scraped_at: new Date().toISOString(),
+        ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+      })
       .eq("id", params.id);
     return NextResponse.json({ done: true, count: 0 });
   }
@@ -55,7 +59,10 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (newPosts.length === 0) {
     await supabase
       .from("creators")
-      .update({ last_scraped_at: new Date().toISOString() })
+      .update({
+        last_scraped_at: new Date().toISOString(),
+        ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+      })
       .eq("id", params.id);
     return NextResponse.json({ done: true, count: 0 });
   }
@@ -86,7 +93,10 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   await supabase
     .from("creators")
-    .update({ last_scraped_at: new Date().toISOString() })
+    .update({
+      last_scraped_at: new Date().toISOString(),
+      ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+    })
     .eq("id", params.id);
 
   // Update apify run with actual posts count (fire and forget)

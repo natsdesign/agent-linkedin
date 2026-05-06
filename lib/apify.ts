@@ -41,6 +41,27 @@ function nestedNum(obj: Record<string, unknown>, path: string): number {
   return typeof cur === "number" ? cur : 0;
 }
 
+// Extract the author's profile picture from the first raw item
+function extractAvatarUrl(item: Record<string, unknown>): string | null {
+  // Try direct top-level fields
+  for (const k of ["authorProfilePicture", "authorImage", "actorImage", "profilePicture", "authorAvatar", "profileImage"]) {
+    const v = item[k];
+    if (typeof v === "string" && v.startsWith("http")) return v;
+  }
+  // Try nested author / actor objects
+  for (const parentKey of ["author", "actor"]) {
+    const parent = item[parentKey];
+    if (parent && typeof parent === "object") {
+      const obj = parent as Record<string, unknown>;
+      for (const k of ["profilePicture", "image", "avatar", "picture", "photo", "profileImage"]) {
+        const v = obj[k];
+        if (typeof v === "string" && v.startsWith("http")) return v;
+      }
+    }
+  }
+  return null;
+}
+
 function mapItems(items: Record<string, unknown>[]): ScrapedLinkedInPost[] {
   return items
     .map((item): ScrapedLinkedInPost => ({
@@ -82,25 +103,33 @@ export async function startScraping(linkedinUrl: string): Promise<string> {
   return run.id;
 }
 
-// Poll run status — returns posts when done, null if still running
+export type ScrapingResult = {
+  posts: ScrapedLinkedInPost[];
+  avatarUrl: string | null;
+};
+
+// Poll run status — returns { posts, avatarUrl } when done, null if still running
 export async function getScrapingResults(
   runId: string
-): Promise<ScrapedLinkedInPost[] | null> {
+): Promise<ScrapingResult | null> {
   const run = await client.run(runId).get();
   if (!run) return null;
   console.log("Status du run:", run.status);
   if (run.status === "RUNNING" || run.status === "READY") return null;
-  if (run.status !== "SUCCEEDED") return []; // FAILED / ABORTED / TIMED-OUT
+  if (run.status !== "SUCCEEDED") return { posts: [], avatarUrl: null };
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
   console.log("Items trouvés:", items.length);
-  const mapped = mapItems(items as Record<string, unknown>[]);
+  const rawItems = items as Record<string, unknown>[];
+  const posts = mapItems(rawItems);
+  const avatarUrl = rawItems.length > 0 ? extractAvatarUrl(rawItems[0]) : null;
+  console.log("Avatar URL trouvée:", avatarUrl);
 
   void (async () => {
     const { error } = await createClient()
       .from("apify_runs")
-      .insert({ run_id: runId, posts_scraped: mapped.length, cost_usd: mapped.length * 0.002 });
+      .insert({ run_id: runId, posts_scraped: posts.length, cost_usd: posts.length * 0.002 });
     if (error) console.error("[apify_runs insert error]", error.message);
   })();
 
-  return mapped;
+  return { posts, avatarUrl };
 }
