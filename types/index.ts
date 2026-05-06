@@ -63,5 +63,22 @@ export type CreatorProfile = {
   goals: string[];
   posting_frequency: number;
   context: string | null;
+  linkedin_url: string | null;
   updated_at: string;
+};
+
+export type MyPost = {
+  id: string;
+  content: string;
+  published_at: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  views: number;
+  engagement_rate: number | null;
+  hook_type: string | null;
+  format: string | null;
+  themes: string[];
+  post_url: string | null;
+  created_at: string;
 };

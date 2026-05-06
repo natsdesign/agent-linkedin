@@ -9,7 +9,18 @@
       "Bash(git remote *)",
       "Bash(git branch *)",
       "Bash(git push *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Leonxlnx/taste-skill/main/skills/taste-skill/SKILL.md\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Nathan\\\\Desktop\\\\agent linkedin\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(node -e \"require\\('recharts'\\)\")",
+      "Bash(mkdir \"c:\\\\Users\\\\Nathan\\\\Desktop\\\\agent linkedin\\\\app\\\\api\\\\my-posts\" && mkdir \"c:\\\\Users\\\\Nathan\\\\Desktop\\\\agent linkedin\\\\app\\\\api\\\\my-posts\\\\[id]\" && mkdir \"c:\\\\Users\\\\Nathan\\\\Desktop\\\\agent linkedin\\\\app\\\\api\\\\my-posts\\\\import\" && mkdir \"c:\\\\Users\\\\Nathan\\\\Desktop\\\\agent linkedin\\\\app\\\\api\\\\my-posts\\\\analyze\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Nathan\\Desktop\\agent linkedin\\app\\api\\my-posts"
     ]
   }
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, PenSquare, CalendarDays, Zap, Settings, DollarSign } from "lucide-react";
+import { Users, PenSquare, CalendarDays, Zap, Settings, DollarSign, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CostDrawer } from "@/components/layout/CostDrawer";
 
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/inspirations", label: "Inspirations", icon: Users },
   { href: "/create",       label: "Créer",         icon: PenSquare },
   { href: "/calendar",     label: "Calendrier",    icon: CalendarDays },
+  { href: "/analytics",    label: "Mon compte",    icon: BarChart2 },
 ];
 
 export function Sidebar() {
