@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BYPASS_PREFIXES = [
   "/locked",
-  "/api/unlock",
+  "/api/",
   "/_next",
   "/favicon.ico",
 ];

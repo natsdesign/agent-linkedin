@@ -86,5 +86,10 @@ export async function GET() {
     total_usd:      anthropic_total_usd + apify_total_usd,
     this_month_usd: anthropic_month_usd + apify_month_usd,
     recent,
+  }, {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+    },
   });
 }
