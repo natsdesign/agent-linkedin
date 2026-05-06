@@ -51,7 +51,9 @@ export async function scrapeLinkedInPosts(
     { waitSecs: 120 }
   );
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
-  return mapItems(items as Record<string, unknown>[]);
+  const rawItems = items as Record<string, unknown>[];
+  console.log('RAW APIFY ITEM:', JSON.stringify(rawItems[0], null, 2))
+  return mapItems(rawItems);
 }
 
 // Async scrape — starts the Apify run and returns immediately
