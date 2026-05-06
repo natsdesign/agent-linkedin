@@ -4,6 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET() {
   const supabase = createClient();
 
+  console.log('COSTS ROUTE CALLED')
+
+  const { data: usageData, error: usageError } = await supabase
+    .from('usage_logs').select('*')
+  console.log('USAGE_LOGS:', JSON.stringify(usageData), JSON.stringify(usageError))
+
+  const { data: apifyData, error: apifyError } = await supabase
+    .from('apify_runs').select('*')
+  console.log('APIFY_RUNS:', JSON.stringify(apifyData), JSON.stringify(apifyError))
+
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
