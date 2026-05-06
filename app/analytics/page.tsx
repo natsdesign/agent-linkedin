@@ -472,7 +472,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} />
                   <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} unit="%" />
                   <Tooltip
-                    formatter={(v: number | undefined) => [`${v ?? 0}%`, "Engagement"]}
+                    formatter={(v) => [`${Number(v ?? 0).toFixed(2)}%`, "Engagement"]}
                     labelFormatter={(l) => `Le ${l}`}
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
                   />
@@ -496,7 +496,7 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="format" tick={{ fontSize: 12 }} tickLine={false} />
                     <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} unit="%" />
                     <Tooltip
-                      formatter={(v: number | undefined) => [`${v ?? 0}%`, "Engagement moyen"]}
+                      formatter={(v) => [`${Number(v ?? 0).toFixed(2)}%`, "Engagement moyen"]}
                       contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
                     />
                     <Bar dataKey="avg" radius={[6, 6, 0, 0]}>
