@@ -35,6 +35,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Edit2,
   Loader2,
   Plus,
@@ -291,12 +292,21 @@ function PostDetailModal({
   onUpdate: (p: GeneratedPost) => void;
   onDelete: (id: string) => void;
 }) {
+  const { showToast } = useToast();
   const [editing,       setEditing]       = useState(false);
   const [editContent,   setEditContent]   = useState(post.content);
   const [saving,        setSaving]        = useState(false);
   const [publishing,    setPublishing]    = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [copied,        setCopied]        = useState(false);
   const cfg = STATUS_CFG[post.status] ?? STATUS_CFG.draft;
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(post.content);
+    setCopied(true);
+    showToast("Post copié !");
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function patch(body: Partial<GeneratedPost>) {
     const res = await fetch(`/api/posts/${post.id}`, {
@@ -411,6 +421,13 @@ function PostDetailModal({
               >
                 <Edit2 size={14} />
                 Modifier
+              </button>
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 border border-zinc-200 hover:text-zinc-800 hover:border-zinc-300 hover:bg-zinc-50 transition-all"
+              >
+                <Copy size={14} />
+                {copied ? "Copié !" : "Copier"}
               </button>
 
               {post.status !== "published" && (

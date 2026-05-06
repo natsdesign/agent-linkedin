@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   RefreshCw,
   ChevronRight,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
@@ -123,7 +124,15 @@ function PostCard({
 }) {
   const { showToast } = useToast();
   const [content, setContent] = useState(post.content);
+  const [copied, setCopied] = useState(false);
   const validated = post.status === "validated";
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(content);
+    setCopied(true);
+    showToast("Post copié !");
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function handleValidate() {
     if (validated || post.validating) return;
@@ -219,6 +228,13 @@ function PostCard({
         >
           <RefreshCw size={12} />
           Regénérer
+        </button>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all"
+        >
+          <Copy size={12} />
+          {copied ? "Copié !" : "Copier"}
         </button>
         <button
           onClick={handleValidate}
