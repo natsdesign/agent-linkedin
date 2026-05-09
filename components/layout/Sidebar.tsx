@@ -164,6 +164,8 @@ function AccountSwitcher() {
 
   if (!active) return null;
 
+  console.log('AccountSwitcher rendered');
+
   return (
     <>
       <div className="relative px-3 py-2 border-b border-zinc-100" ref={dropdownRef}>

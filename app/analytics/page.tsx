@@ -32,15 +32,16 @@ function Heatmap({ posts }: { posts: MyPost[] }) {
   start.setDate(today.getDate() - WEEKS * 7);
   start.setDate(start.getDate() - start.getDay());
 
-  const postMap: Record<string, { engagement: number; likes: number; content: string }> = {};
+  const postMap: Record<string, { score: number; likes: number; content: string }> = {};
   posts.forEach((p) => {
     if (!p.published_at) return;
     const d = p.published_at.slice(0, 10);
-    postMap[d] = { engagement: p.engagement_rate ?? 0, likes: p.likes, content: p.content.slice(0, 80) };
+    const score = Math.min(100, (p.likes ?? 0) * 2 + (p.comments ?? 0) * 5 + (p.shares ?? 0) * 3);
+    postMap[d] = { score, likes: p.likes, content: p.content.slice(0, 80) };
   });
 
-  const engagements = posts.map((p) => p.engagement_rate ?? 0).filter((e) => e > 0).sort((a, b) => a - b);
-  const viralThreshold = engagements.length > 0 ? engagements[Math.floor(engagements.length * 0.8)] : Infinity;
+  const scores = posts.map((p) => Math.min(100, (p.likes ?? 0) * 2 + (p.comments ?? 0) * 5 + (p.shares ?? 0) * 3)).filter((s) => s > 0).sort((a, b) => a - b);
+  const viralThreshold = scores.length > 0 ? scores[Math.floor(scores.length * 0.8)] : Infinity;
 
   const cells: { x: number; y: number; date: string; info: typeof postMap[string] | null }[] = [];
   for (let w = 0; w < WEEKS; w++) {
@@ -60,7 +61,7 @@ function Heatmap({ posts }: { posts: MyPost[] }) {
       <svg width={WEEKS * (CELL + GAP)} height={DAYS * (CELL + GAP) + 20} className="block">
         {cells.map((c) => {
           let fill = "#e5e7eb";
-          if (c.info) fill = c.info.engagement >= viralThreshold ? "#16a34a" : "#86efac";
+          if (c.info) fill = c.info.score >= viralThreshold ? "#16a34a" : "#86efac";
           return (
             <rect
               key={c.date}
@@ -78,7 +79,7 @@ function Heatmap({ posts }: { posts: MyPost[] }) {
           <div className="font-medium">{tooltip.date}</div>
           {tooltip.info ? (
             <>
-              <div>{tooltip.info.likes} likes • {tooltip.info.engagement.toFixed(1)}% engagement</div>
+              <div>{tooltip.info.likes} likes • score {tooltip.info.score} / 100</div>
               <div className="mt-1 text-zinc-300 leading-snug">{tooltip.info.content}…</div>
             </>
           ) : <div className="text-zinc-400">Pas de post ce jour-là</div>}
@@ -305,12 +306,18 @@ export default function AnalyticsPage() {
   const noViews = posts.every((p) => !p.views || p.views === 0);
   const allEngagementZero = posts.every((p) => !p.engagement_rate || p.engagement_rate === 0);
 
+  // Score 0-100 : likes×2 + comments×5 + shares×3, plafonné à 100
+  const postScore = (p: MyPost) => Math.min(100, (p.likes ?? 0) * 2 + (p.comments ?? 0) * 5 + (p.shares ?? 0) * 3);
+
+  const avgScore = posts.length > 0
+    ? Math.round(posts.reduce((s, p) => s + postScore(p), 0) / posts.length)
+    : 0;
+
   const postsWithEngagement = posts.filter((p) => (p.engagement_rate ?? 0) > 0);
   const avgEngagement = (() => {
     if (postsWithEngagement.length > 0) {
       return postsWithEngagement.reduce((s, p) => s + (p.engagement_rate ?? 0), 0) / postsWithEngagement.length;
     }
-    // Fallback: avg likes as proxy (likes / 100)
     const withLikes = posts.filter((p) => p.likes > 0);
     if (withLikes.length > 0) {
       return withLikes.reduce((s, p) => s + p.likes, 0) / withLikes.length / 100;
@@ -318,7 +325,7 @@ export default function AnalyticsPage() {
     return 0;
   })();
 
-  const bestPost = posts.reduce<MyPost | null>((best, p) => (!best || p.likes > best.likes ? p : best), null);
+  const bestPost = posts.reduce<MyPost | null>((best, p) => (!best || postScore(p) > postScore(best) ? p : best), null);
 
   const postDays = new Set(posts.map((p) => p.published_at?.slice(0, 10)).filter(Boolean));
   let streak = 0;
@@ -331,25 +338,24 @@ export default function AnalyticsPage() {
   }
 
   // ── Chart data ──
-  // If all engagement_rate are 0/null, fall back to showing likes over time
   const lineData = posts
     .filter((p) => p.published_at)
     .sort((a, b) => (a.published_at! > b.published_at! ? 1 : -1))
     .slice(-30)
     .map((p) => ({
       date:  p.published_at!.slice(0, 10),
-      value: allEngagementZero ? p.likes : Number((p.engagement_rate ?? 0).toFixed(2)),
+      value: postScore(p),
     }));
 
   const formatMap: Record<string, { total: number; count: number }> = {};
   posts.forEach((p) => {
     if (!p.format) return;
     if (!formatMap[p.format]) formatMap[p.format] = { total: 0, count: 0 };
-    formatMap[p.format].total += p.engagement_rate ?? 0;
+    formatMap[p.format].total += postScore(p);
     formatMap[p.format].count += 1;
   });
   const barData = Object.entries(formatMap).map(([format, { total, count }]) => ({
-    format, avg: Number((total / count).toFixed(2)),
+    format, avg: Math.round(total / count),
   }));
 
   const FORMAT_COLORS: Record<string, string> = {
@@ -476,17 +482,13 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-4 gap-4">
           {[
             {
-              label: "Engagement moyen",
-              value: noViews && allEngagementZero
-                ? `${avgEngagement.toFixed(2)}%`
-                : `${avgEngagement.toFixed(2)}%`,
-              sub: noViews && allEngagementZero
-                ? "(basé sur likes+comments)"
-                : `sur ${postsWithEngagement.length} posts avec vues`,
+              label: "Score moyen",
+              value: `${avgScore} / 100`,
+              sub: "likes×2 + comments×5 + shares×3",
             },
             {
               label: "Meilleur post",
-              value: bestPost ? `${bestPost.likes} likes` : "—",
+              value: bestPost ? `${postScore(bestPost)} / 100` : "—",
               sub: bestPost ? bestPost.content.slice(0, 40) + "…" : "Aucun post",
             },
             {
@@ -512,24 +514,18 @@ export default function AnalyticsPage() {
           <>
             {/* Line chart */}
             <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
-              <h2 className="font-semibold text-zinc-900 mb-1">
-                {allEngagementZero ? "Likes par post" : "Évolution de l'engagement"}
-              </h2>
-              {allEngagementZero && (
-                <p className="text-xs text-zinc-400 mb-4">Données de vues non disponibles — affichage des likes</p>
-              )}
+              <h2 className="font-semibold text-zinc-900 mb-1">Évolution du score</h2>
+              <p className="text-xs text-zinc-400 mb-4">Score 0-100 par post (likes×2 + comments×5 + shares×3)</p>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={lineData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} />
                   <YAxis
                     tick={{ fontSize: 11 }} tickLine={false} axisLine={false}
-                    unit={allEngagementZero ? "" : "%"}
+                    domain={[0, 100]}
                   />
                   <Tooltip
-                    formatter={(v) => allEngagementZero
-                      ? [`${Number(v ?? 0)} likes`, "Likes"]
-                      : [`${Number(v ?? 0).toFixed(2)}%`, "Engagement"]}
+                    formatter={(v) => [`${Number(v ?? 0)} / 100`, "Score"]}
                     labelFormatter={(l) => `Le ${l}`}
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
                   />
@@ -541,14 +537,14 @@ export default function AnalyticsPage() {
             {/* Bar chart */}
             {barData.length > 0 && (
               <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
-                <h2 className="font-semibold text-zinc-900 mb-5">Engagement moyen par format</h2>
+                <h2 className="font-semibold text-zinc-900 mb-5">Score moyen par format</h2>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={barData} barSize={36}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="format" tick={{ fontSize: 12 }} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} unit="%" />
+                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} domain={[0, 100]} />
                     <Tooltip
-                      formatter={(v) => [`${Number(v ?? 0).toFixed(2)}%`, "Engagement moyen"]}
+                      formatter={(v) => [`${Number(v ?? 0)} / 100`, "Score moyen"]}
                       contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
                     />
                     <Bar dataKey="avg" radius={[6, 6, 0, 0]}>
@@ -653,7 +649,7 @@ export default function AnalyticsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50">
-                  {["Date", "Contenu", "Format", "Likes", "Comments", "Engagement", "Actions"].map((h) => (
+                  {["Date", "Contenu", "Format", "Likes", "Comments", "Score /100", "Actions"].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -668,7 +664,7 @@ export default function AnalyticsPage() {
                     </td>
                     <td className="px-4 py-3 text-zinc-700">{p.likes}</td>
                     <td className="px-4 py-3 text-zinc-700">{p.comments}</td>
-                    <td className="px-4 py-3 text-zinc-700">{p.engagement_rate != null ? `${Number(p.engagement_rate).toFixed(2)}%` : "—"}</td>
+                    <td className="px-4 py-3 text-zinc-700 font-medium">{postScore(p)} / 100</td>
                     <td className="px-4 py-3">
                       <button onClick={() => handleDelete(p.id)} className="text-zinc-300 hover:text-red-400 transition-colors">
                         <Trash2 size={15} />
