@@ -5,8 +5,9 @@ import {
   LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { Trash2, Plus, Download, Brain, X, Link2, Link2Off, RefreshCw } from "lucide-react";
+import { Trash2, Plus, Brain, X, Link2, Link2Off, RefreshCw, ChevronDown, ChevronUp, CheckCircle, XCircle } from "lucide-react";
 import { MyPost } from "@/types";
+import type { CoachReport, CoachPredictionDB, CoachKnowledge } from "@/lib/coach";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -257,6 +258,32 @@ export default function AnalyticsPage() {
   const [showUnlink, setShowUnlink] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
 
+  // ── Coach IA state ──
+  const [coachReport, setCoachReport] = useState<CoachReport | null>(null);
+  const [coachPredictions, setCoachPredictions] = useState<CoachPredictionDB[]>([]);
+  const [coachKnowledge, setCoachKnowledge] = useState<CoachKnowledge[]>([]);
+  const [coachHistory, setCoachHistory] = useState<CoachReport[]>([]);
+  const [coachGenerating, setCoachGenerating] = useState(false);
+  const [showLearnings, setShowLearnings] = useState(false);
+  const [showCoachHistory, setShowCoachHistory] = useState(false);
+  const [predFeedback, setPredFeedback] = useState<Record<string, "worked" | "didnt_work">>({});
+
+  const loadCoachData = useCallback(async () => {
+    const [reportRes, knowledgeRes] = await Promise.all([
+      fetch("/api/coach/report"),
+      fetch("/api/coach/knowledge"),
+    ]);
+    if (reportRes.ok) {
+      const data = await reportRes.json();
+      setCoachReport(data.report ?? null);
+      setCoachPredictions(data.predictions ?? []);
+      setCoachHistory(data.history ?? []);
+    }
+    if (knowledgeRes.ok) {
+      setCoachKnowledge(await knowledgeRes.json());
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     const [postsData, profileData] = await Promise.all([
       fetch("/api/my-posts").then((r) => r.json()),
@@ -268,6 +295,7 @@ export default function AnalyticsPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadCoachData(); }, [loadCoachData]);
 
   async function handleImport() {
     setImportMsg(null);
@@ -294,6 +322,27 @@ export default function AnalyticsPage() {
   async function handleDelete(id: string) {
     setPosts((p) => p.filter((x) => x.id !== id));
     await fetch(`/api/my-posts/${id}`, { method: "DELETE" });
+  }
+
+  async function handleGenerateCoach() {
+    setCoachGenerating(true);
+    const res = await fetch("/api/coach/generate", { method: "POST" });
+    if (res.ok) {
+      const data = await res.json();
+      setCoachReport(data.report ?? null);
+      setCoachPredictions(data.predictions ?? []);
+      await loadCoachData();
+    }
+    setCoachGenerating(false);
+  }
+
+  async function handlePredictionFeedback(predId: string, feedback: "worked" | "didnt_work") {
+    setPredFeedback((prev) => ({ ...prev, [predId]: feedback }));
+    await fetch("/api/coach/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prediction_id: predId, feedback }),
+    });
   }
 
   // ── KPIs ──
@@ -551,6 +600,190 @@ export default function AnalyticsPage() {
             </div>
           </>
         )}
+
+        {/* Coach IA */}
+        <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="font-semibold text-zinc-900">🧠 Coach IA</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Analyse stratégique personnalisée — algorithme LinkedIn 2025/2026</p>
+            </div>
+            <button
+              onClick={handleGenerateCoach}
+              disabled={coachGenerating || posts.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-500 text-white text-sm font-medium rounded-lg hover:bg-brand-600 disabled:opacity-50"
+            >
+              <Brain size={15} className={coachGenerating ? "animate-pulse" : ""} />
+              {coachGenerating ? "Le coach analyse vos données…" : "Générer l'analyse"}
+            </button>
+          </div>
+
+          {coachGenerating && (
+            <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
+              <Brain size={32} className="animate-pulse text-brand-400 mb-3" />
+              <p className="text-sm">Le coach analyse vos données…</p>
+              <p className="text-xs text-zinc-300 mt-1">Croisement algo LinkedIn × vos patterns personnels</p>
+            </div>
+          )}
+
+          {coachReport && !coachGenerating && (
+            <div className="space-y-6">
+
+              {/* Analyse de la semaine */}
+              <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4">
+                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Analyse de la semaine</p>
+                <p className="text-sm text-zinc-700 leading-relaxed">{coachReport.analysis}</p>
+              </div>
+
+              {/* Recommandations */}
+              {coachReport.recommendations?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Mes recommandations</p>
+                  <div className="grid gap-3">
+                    {coachReport.recommendations.map((rec, i) => (
+                      <div key={i} className="border border-zinc-100 rounded-xl p-4 bg-white shadow-sm">
+                        <div className="flex items-start gap-3">
+                          <span className="shrink-0 w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                          <div className="flex-1 space-y-2">
+                            <p className="font-semibold text-zinc-900 text-sm">{rec.titre}</p>
+                            <p className="text-sm text-zinc-700">{rec.conseil}</p>
+                            <p className="text-xs text-zinc-400">{rec.why}</p>
+                            <div className="flex items-start gap-2 mt-2">
+                              <span className="shrink-0 text-emerald-500 mt-0.5">
+                                <CheckCircle size={13} />
+                              </span>
+                              <p className="text-xs text-emerald-700 font-medium">{rec.action}</p>
+                            </div>
+                            {rec.expected_impact && (
+                              <span className="inline-block text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">
+                                {rec.expected_impact}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Learnings (collapsible) */}
+              {coachReport.learnings?.length > 0 && (
+                <div className="border border-zinc-100 rounded-xl overflow-hidden">
+                  <button
+                    onClick={() => setShowLearnings((v) => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-zinc-50 hover:bg-zinc-100 transition-colors"
+                  >
+                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">
+                      Ce que j&apos;ai appris ({coachReport.learnings.length})
+                    </p>
+                    {showLearnings ? <ChevronUp size={14} className="text-zinc-400" /> : <ChevronDown size={14} className="text-zinc-400" />}
+                  </button>
+                  {showLearnings && (
+                    <div className="divide-y divide-zinc-50">
+                      {coachReport.learnings.map((l, i) => (
+                        <div key={i} className="px-4 py-3">
+                          <p className="text-sm text-zinc-800 mb-1">{l.pattern}</p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-brand-400"
+                                style={{ width: `${Math.round((l.confidence ?? 0) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-zinc-400 shrink-0">{Math.round((l.confidence ?? 0) * 100)}% confiance</span>
+                          </div>
+                          <p className="text-xs text-zinc-400">{l.based_on}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Prédictions de la semaine */}
+              {coachPredictions.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Mes prédictions pour la semaine</p>
+                  <div className="grid gap-3">
+                    {coachPredictions.map((pred) => {
+                      const localFeedback = predFeedback[pred.id];
+                      const finalFeedback = localFeedback ?? (pred.was_correct === true ? "worked" : pred.was_correct === false ? "didnt_work" : undefined);
+                      return (
+                        <div key={pred.id} className="flex items-start gap-3 border border-zinc-100 rounded-xl p-4 bg-white">
+                          <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 capitalize mt-0.5">
+                            {pred.prediction_type}
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-sm text-zinc-800">{pred.prediction}</p>
+                            {pred.expected_improvement && (
+                              <p className="text-xs text-zinc-400 mt-0.5">Amélioration attendue : +{pred.expected_improvement}%</p>
+                            )}
+                          </div>
+                          {!finalFeedback ? (
+                            <div className="flex gap-2 shrink-0">
+                              <button
+                                onClick={() => handlePredictionFeedback(pred.id, "worked")}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                              >
+                                <CheckCircle size={11} /> Ça a marché
+                              </button>
+                              <button
+                                onClick={() => handlePredictionFeedback(pred.id, "didnt_work")}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors"
+                              >
+                                <XCircle size={11} /> Pas concluant
+                              </button>
+                            </div>
+                          ) : (
+                            <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg border ${finalFeedback === "worked" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
+                              {finalFeedback === "worked" ? "✅ Concluant" : "❌ Pas concluant"}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Historique */}
+              {coachHistory.length > 1 && (
+                <div>
+                  <button
+                    onClick={() => setShowCoachHistory((v) => !v)}
+                    className="flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
+                  >
+                    {showCoachHistory ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    Voir l&apos;historique ({coachHistory.length - 1} rapport{coachHistory.length > 2 ? "s" : ""} précédent{coachHistory.length > 2 ? "s" : ""})
+                  </button>
+                  {showCoachHistory && (
+                    <div className="mt-3 space-y-2">
+                      {coachHistory.slice(1).map((r) => (
+                        <div key={r.id} className="border border-zinc-100 rounded-xl p-4 bg-zinc-50">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-semibold text-zinc-500">Semaine du {r.week_start}</p>
+                            <span className="text-xs text-zinc-400">
+                              {(r.recommendations as unknown[])?.length ?? 0} recommandations
+                            </span>
+                          </div>
+                          <p className="text-sm text-zinc-600 leading-relaxed">{r.analysis}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {!coachReport && !coachGenerating && (
+            <p className="text-sm text-zinc-400">
+              Lance l&apos;analyse pour obtenir des recommandations stratégiques basées sur l&apos;algo LinkedIn 2025/2026 et tes données personnelles.
+            </p>
+          )}
+        </div>
 
         {/* Analyse IA */}
         <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
