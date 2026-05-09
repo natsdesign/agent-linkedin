@@ -1,361 +1,393 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ChevronLeft, ChevronRight, Check, Zap } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2, Zap, Send, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Flow definition ──────────────────────────────────────────────────────────
 
-type FormData = {
-  niche: string;
-  target_audience: string;
-  posting_frequency: number;
-  tone: string;
-  goals: string[];
-  context: string;
+type Step = {
+  id: string;
+  message: string;
+  type: "buttons" | "text" | "textarea";
+  options?: string[];
 };
 
-const INITIAL: FormData = {
-  niche:             "",
-  target_audience:   "",
-  posting_frequency: 5,
-  tone:              "",
-  goals:             [],
-  context:           "",
+const PERSONAL_STEPS: Step[] = [
+  {
+    id: "account_type",
+    message:
+      "Bonjour ! Je suis ton agent de contenu LinkedIn. Pour créer du contenu qui te ressemble vraiment, j'ai besoin de te connaître.\n\nC'est pour ton compte personnel ou tu gères des comptes clients ?",
+    type: "buttons",
+    options: ["Mon compte", "Comptes clients"],
+  },
+  {
+    id: "job",
+    message: "Parfait. En quelques mots, tu fais quoi comme métier ?",
+    type: "text",
+  },
+  {
+    id: "audience",
+    message: "À qui tu t'adresses sur LinkedIn ? Qui est ton client idéal ?",
+    type: "text",
+  },
+  {
+    id: "style",
+    message: "Quel est ton style naturel ? Tu es plutôt...",
+    type: "buttons",
+    options: [
+      "Expert qui éduque",
+      "Entrepreneur qui partage son parcours",
+      "Créatif qui inspire",
+      "Consultant direct",
+    ],
+  },
+  {
+    id: "goal",
+    message: "Quel est ton objectif principal sur LinkedIn ?",
+    type: "buttons",
+    options: ["Notoriété", "Générer des leads", "Recruter", "Personal branding"],
+  },
+  {
+    id: "frequency",
+    message: "Tu veux poster combien de fois par semaine ?",
+    type: "buttons",
+    options: ["3x", "5x", "7x"],
+  },
+  {
+    id: "example",
+    message:
+      "Dernière question — donne-moi un exemple de post que tu as fait ou que tu aimerais faire. Même une idée vague.",
+    type: "textarea",
+  },
+];
+
+const CLIENT_STEPS: Step[] = [
+  {
+    id: "account_type",
+    message:
+      "Bonjour ! Je suis ton agent de contenu LinkedIn. Pour créer du contenu qui te ressemble vraiment, j'ai besoin de te connaître.\n\nC'est pour ton compte personnel ou tu gères des comptes clients ?",
+    type: "buttons",
+    options: ["Mon compte", "Comptes clients"],
+  },
+  {
+    id: "client_name",
+    message:
+      "Super, tu vas pouvoir gérer plusieurs comptes depuis un seul endroit. Commençons par ton premier client. C'est qui ?",
+    type: "text",
+  },
+  {
+    id: "job",
+    message: "Il fait quoi comme métier ?",
+    type: "text",
+  },
+  {
+    id: "audience",
+    message: "À qui il s'adresse sur LinkedIn ?",
+    type: "text",
+  },
+  {
+    id: "style",
+    message: "Comment il parle ? Son style naturel ?",
+    type: "buttons",
+    options: [
+      "Expert qui éduque",
+      "Entrepreneur qui partage son parcours",
+      "Créatif qui inspire",
+      "Consultant direct",
+    ],
+  },
+  {
+    id: "goal",
+    message: "Son objectif principal ?",
+    type: "buttons",
+    options: ["Notoriété", "Générer des leads", "Recruter", "Personal branding"],
+  },
+  {
+    id: "example",
+    message:
+      "Un exemple de contenu qu'il a déjà posté ou qui lui ressemble ?",
+    type: "textarea",
+  },
+];
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Message = {
+  role: "agent" | "user";
+  text: string;
 };
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+type Phase = "chat" | "generating" | "done" | "edit";
 
-const FREQUENCY_OPTIONS = [
-  { label: "3 / semaine", value: 3 },
-  { label: "5 / semaine", value: 5 },
-  { label: "7 / semaine", value: 7 },
-];
-
-const GOALS_OPTIONS = [
-  "Notoriété",
-  "Génération de leads",
-  "Ventes",
-  "Personal branding",
-];
-
-const STEPS = ["Ton profil", "Ton style", "Ton contexte"];
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-zinc-700 mb-1.5">{label}</label>
-      {children}
-      {hint && <p className="text-xs text-zinc-400 mt-1.5">{hint}</p>}
-    </div>
-  );
-}
-
-const inputCls =
-  "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-all";
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [checking,   setChecking]   = useState(true);
-  const [isUpdate,   setIsUpdate]   = useState(false);
-  const [step,       setStep]       = useState(0);
-  const [form,       setForm]       = useState<FormData>(INITIAL);
-  const [submitting, setSubmitting] = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const editAccountId = searchParams.get("accountId");
+
+  const [phase, setPhase] = useState<Phase>("chat");
+  const [steps, setSteps] = useState<Step[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [generatedAccount, setGeneratedAccount] = useState<{ id: string; name: string } | null>(null);
+  const [summary, setSummary] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/profile")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.id) {
-          setIsUpdate(true);
-          setForm({
-            niche:             data.niche             ?? "",
-            target_audience:   data.target_audience   ?? "",
-            posting_frequency: data.posting_frequency ?? 5,
-            tone:              data.tone              ?? "",
-            goals:             data.goals             ?? [],
-            context:           data.context           ?? "",
-          });
-        }
-        setChecking(false);
-      })
-      .catch(() => setChecking(false));
+    // Start with the first question
+    const initialSteps = PERSONAL_STEPS;
+    setSteps(initialSteps);
+    setMessages([{ role: "agent", text: initialSteps[0].message }]);
   }, []);
 
-  function set<K extends keyof FormData>(key: K, value: FormData[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, phase]);
+
+  const currentStep = steps[currentStepIndex];
+
+  function addUserMessage(text: string) {
+    setMessages((prev) => [...prev, { role: "user", text }]);
   }
 
-  function toggleGoal(goal: string) {
-    set(
-      "goals",
-      form.goals.includes(goal)
-        ? form.goals.filter((g) => g !== goal)
-        : [...form.goals, goal]
-    );
+  function addAgentMessage(text: string) {
+    setMessages((prev) => [...prev, { role: "agent", text }]);
   }
 
-  function canAdvance() {
-    if (step === 0) return form.niche.trim() !== "" && form.target_audience.trim() !== "";
-    if (step === 1) return form.tone.trim() !== "" && form.goals.length > 0;
-    return true;
-  }
+  function handleAnswer(answer: string) {
+    addUserMessage(answer);
+    const newAnswers = [...answers, answer];
+    setAnswers(newAnswers);
 
-  async function handleSubmit() {
-    setError(null);
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/profile", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(form),
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error ?? "Erreur lors de l'enregistrement.");
-      }
-      router.push("/inspirations");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Une erreur s'est produite.");
-      setSubmitting(false);
+    // If this was the account_type question, switch step list
+    if (currentStep.id === "account_type") {
+      const nextSteps = answer === "Comptes clients" ? CLIENT_STEPS : PERSONAL_STEPS;
+      setSteps(nextSteps);
+      // Move to next step in the new list (index 1)
+      const nextStep = nextSteps[1];
+      setTimeout(() => {
+        addAgentMessage(nextStep.message);
+        setCurrentStepIndex(1);
+      }, 300);
+      return;
+    }
+
+    const nextIndex = currentStepIndex + 1;
+    if (nextIndex < steps.length) {
+      setTimeout(() => {
+        addAgentMessage(steps[nextIndex].message);
+        setCurrentStepIndex(nextIndex);
+        setInputValue("");
+      }, 300);
+    } else {
+      // All questions answered — generate profile
+      setTimeout(() => generateProfile(newAnswers), 300);
     }
   }
 
-  if (checking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <Loader2 size={24} className="animate-spin text-brand-500" />
-      </div>
-    );
+  function handleTextSubmit() {
+    const trimmed = inputValue.trim();
+    if (!trimmed) return;
+    setInputValue("");
+    handleAnswer(trimmed);
   }
 
-  const stepContent = [
-    // Step 1 — Ton profil
-    <div key="step1" className="space-y-5">
-      <Field label="Ta niche" hint="Le domaine sur lequel tu crées du contenu.">
-        <input
-          type="text"
-          value={form.niche}
-          onChange={(e) => set("niche", e.target.value)}
-          placeholder="ex: marketing digital, immobilier, coaching..."
-          className={inputCls}
-          autoFocus
-        />
-      </Field>
-      <Field label="Ton audience cible" hint="Décris le profil de tes lecteurs idéaux.">
-        <input
-          type="text"
-          value={form.target_audience}
-          onChange={(e) => set("target_audience", e.target.value)}
-          placeholder="ex: entrepreneurs 30-45 ans, PME en croissance..."
-          className={inputCls}
-        />
-      </Field>
-      <Field label="Fréquence de publication">
-        <div className="flex gap-3">
-          {FREQUENCY_OPTIONS.map(({ label, value }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => set("posting_frequency", value)}
-              className={cn(
-                "flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all",
-                form.posting_frequency === value
-                  ? "bg-brand-50 border-brand-300 text-brand-700"
-                  : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:border-zinc-300"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </Field>
-    </div>,
+  async function generateProfile(allAnswers: string[]) {
+    setPhase("generating");
+    addAgentMessage("Je génère ton profil de contenu...");
 
-    // Step 2 — Ton style
-    <div key="step2" className="space-y-5">
-      <Field label="Ton de voix" hint="Comment tu t'exprimes dans tes posts.">
-        <input
-          type="text"
-          value={form.tone}
-          onChange={(e) => set("tone", e.target.value)}
-          placeholder="ex: expert, inspirant, direct, avec humour..."
-          className={inputCls}
-          autoFocus
-        />
-      </Field>
-      <Field label="Tes objectifs" hint="Sélectionne tout ce qui s'applique.">
-        <div className="grid grid-cols-2 gap-2.5 mt-1">
-          {GOALS_OPTIONS.map((goal) => {
-            const active = form.goals.includes(goal);
-            return (
-              <button
-                key={goal}
-                type="button"
-                onClick={() => toggleGoal(goal)}
-                className={cn(
-                  "flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm border transition-all text-left",
-                  active
-                    ? "bg-brand-50 border-brand-300 text-brand-700"
-                    : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:border-zinc-300"
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex items-center justify-center w-4 h-4 rounded-full border shrink-0 transition-all",
-                    active ? "bg-brand-500 border-brand-500" : "border-zinc-300"
-                  )}
-                >
-                  {active && <Check size={10} className="text-white" strokeWidth={3} />}
-                </span>
-                {goal}
-              </button>
-            );
-          })}
-        </div>
-      </Field>
-    </div>,
+    try {
+      const res = await fetch("/api/onboarding/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          answers: allAnswers,
+          accountId: editAccountId ?? undefined,
+        }),
+      });
 
-    // Step 3 — Ton contexte
-    <div key="step3" className="space-y-5">
-      <Field
-        label="Contexte supplémentaire pour l'agent"
-        hint="Plus tu es précis, meilleurs seront les posts générés."
-      >
-        <textarea
-          value={form.context}
-          onChange={(e) => set("context", e.target.value)}
-          placeholder={`ex: je suis consultant SEO depuis 5 ans, j'accompagne des e-commerçants. Je veux éviter de parler de politique et de religion. Mon ton habituel est assez direct et factuel, avec parfois de l'humour.`}
-          rows={7}
-          className={cn(inputCls, "resize-none leading-relaxed")}
-          autoFocus
-        />
-      </Field>
-    </div>,
-  ];
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error ?? "Erreur de génération");
+      }
+
+      const { account, summary: sum } = await res.json();
+
+      // Set active account cookie
+      await fetch("/api/accounts/active", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: account.id }),
+      });
+
+      setGeneratedAccount(account);
+      setSummary(Array.isArray(sum) ? sum : []);
+      setPhase("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      setPhase("chat");
+    }
+  }
+
+  function handleEdit() {
+    setPhase("edit");
+    setAnswers([]);
+    setCurrentStepIndex(0);
+    setSteps(PERSONAL_STEPS);
+    setMessages([{ role: "agent", text: PERSONAL_STEPS[0].message }]);
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12">
-      <div className="w-full max-w-lg">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-brand-500 flex items-center justify-center shadow-lg">
-            <Zap size={22} className="text-white" fill="currentColor" />
+    <div className="min-h-screen flex flex-col items-center justify-start py-10 px-4" style={{ background: "#0F0F10" }}>
+      {/* Header */}
+      <div className="flex flex-col items-center gap-3 mb-8">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-brand-500 shadow-lg">
+          <Zap size={18} className="text-white" fill="currentColor" />
+        </div>
+        <p className="text-zinc-500 text-sm">Configurer un compte</p>
+      </div>
+
+      {/* Chat window */}
+      <div className="w-full max-w-[580px] flex flex-col gap-3">
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            className={cn(
+              "max-w-[88%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-line",
+              msg.role === "agent"
+                ? "self-start border-l-2 border-emerald-500 text-zinc-200"
+                : "self-end text-zinc-100 ml-auto"
+            )}
+            style={
+              msg.role === "agent"
+                ? { background: "#1A1A1F" }
+                : { background: "#0D2B22" }
+            }
+          >
+            {msg.text}
           </div>
-        </div>
+        ))}
 
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-0 mb-8">
-          {STEPS.map((label, i) => (
-            <div key={i} className="flex items-center">
-              <div className="flex flex-col items-center gap-1.5">
-                <div
-                  className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all",
-                    i < step
-                      ? "bg-brand-500 border-brand-500 text-white"
-                      : i === step
-                      ? "border-brand-400 text-brand-600 bg-brand-50"
-                      : "border-zinc-200 text-zinc-400 bg-white"
-                  )}
-                >
-                  {i < step ? <Check size={14} strokeWidth={2.5} /> : i + 1}
-                </div>
-                <span
-                  className={cn(
-                    "text-xs font-medium whitespace-nowrap",
-                    i === step ? "text-zinc-700" : "text-zinc-400"
-                  )}
-                >
-                  {label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div
-                  className={cn(
-                    "w-20 h-px mx-2 mb-5 transition-all",
-                    i < step ? "bg-brand-400" : "bg-zinc-200"
-                  )}
-                />
-              )}
+        {/* Generating indicator */}
+        {phase === "generating" && (
+          <div className="self-start flex items-center gap-2 px-4 py-3 rounded-2xl text-sm text-zinc-400" style={{ background: "#1A1A1F" }}>
+            <Loader2 size={14} className="animate-spin text-emerald-500" />
+            Analyse en cours...
+          </div>
+        )}
+
+        {/* Done state */}
+        {phase === "done" && generatedAccount && (
+          <div className="self-start px-4 py-4 rounded-2xl text-sm text-zinc-200 w-full" style={{ background: "#1A1A1F", borderLeft: "2px solid #10b981" }}>
+            <p className="text-emerald-400 font-medium mb-3">
+              Ton profil est prêt ! Voici ce que j'ai compris de toi :
+            </p>
+            <ul className="space-y-2">
+              {summary.map((point, i) => (
+                <li key={i} className="flex items-start gap-2 text-zinc-300">
+                  <span className="text-emerald-500 mt-0.5 shrink-0">•</span>
+                  {point}
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => router.push("/inspirations")}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-all"
+              >
+                C'est parfait, on y va
+                <ArrowRight size={14} />
+              </button>
+              <button
+                onClick={handleEdit}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 transition-all"
+              >
+                Modifier quelque chose
+              </button>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
 
-        {/* Card */}
-        <div className="card p-7">
-          <h2 className="text-lg font-semibold text-zinc-900 mb-1">{STEPS[step]}</h2>
-          <p className="text-sm text-zinc-400 mb-6">
-            {step === 0 && "Définis ton positionnement pour personnaliser l'agent."}
-            {step === 1 && "L'agent adaptera le ton et les formats à tes ambitions."}
-            {step === 2 && "Ces infos seront injectées dans chaque génération de contenu."}
-          </p>
+        {error && (
+          <div className="self-start px-4 py-3 rounded-2xl text-sm text-red-400" style={{ background: "#1A1A1F" }}>
+            {error}
+          </div>
+        )}
 
-          {stepContent[step]}
+        <div ref={bottomRef} />
+      </div>
 
-          {error && (
-            <p className="mt-4 text-sm text-red-500 text-center">{error}</p>
+      {/* Input area */}
+      {phase === "chat" && currentStep && (
+        <div className="w-full max-w-[580px] mt-4">
+          {currentStep.type === "buttons" && currentStep.options && (
+            <div className="flex flex-wrap gap-2">
+              {currentStep.options.map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => handleAnswer(opt)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-zinc-200 border border-zinc-700 hover:border-emerald-500 hover:text-emerald-400 transition-all"
+                  style={{ background: "#1A1A1F" }}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
           )}
 
-          {/* Navigation */}
-          <div className="flex gap-3 mt-7">
-            {step > 0 && (
+          {currentStep.type === "text" && (
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleTextSubmit()}
+                placeholder="Tape ta réponse..."
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm text-zinc-100 placeholder-zinc-600 outline-none border border-zinc-700 focus:border-emerald-500 transition-all"
+                style={{ background: "#1A1A1F" }}
+              />
               <button
-                type="button"
-                onClick={() => setStep(step - 1)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-zinc-500 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all"
+                onClick={handleTextSubmit}
+                disabled={!inputValue.trim()}
+                className="px-3 py-2.5 rounded-xl text-zinc-400 hover:text-emerald-400 border border-zinc-700 hover:border-emerald-500 transition-all disabled:opacity-40"
+                style={{ background: "#1A1A1F" }}
               >
-                <ChevronLeft size={15} />
-                Retour
+                <Send size={16} />
               </button>
-            )}
-            <button
-              type="button"
-              disabled={!canAdvance() || submitting}
-              onClick={() => {
-                if (step < STEPS.length - 1) setStep(step + 1);
-                else handleSubmit();
-              }}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 size={15} className="animate-spin" />
-                  Enregistrement…
-                </>
-              ) : step < STEPS.length - 1 ? (
-                <>
-                  Suivant
-                  <ChevronRight size={15} />
-                </>
-              ) : (
-                <>
-                  <Check size={15} />
-                  {isUpdate ? "Mettre à jour" : "Terminer"}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+            </div>
+          )}
 
-        <p className="text-center text-xs text-zinc-300 mt-4">
-          Étape {step + 1} sur {STEPS.length}
-        </p>
-      </div>
+          {currentStep.type === "textarea" && (
+            <div className="flex flex-col gap-2">
+              <textarea
+                autoFocus
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="Tape ta réponse..."
+                rows={4}
+                className="w-full px-4 py-3 rounded-xl text-sm text-zinc-100 placeholder-zinc-600 outline-none border border-zinc-700 focus:border-emerald-500 transition-all resize-none leading-relaxed"
+                style={{ background: "#1A1A1F" }}
+              />
+              <button
+                onClick={handleTextSubmit}
+                disabled={!inputValue.trim()}
+                className="self-end flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-zinc-200 border border-zinc-700 hover:border-emerald-500 hover:text-emerald-400 transition-all disabled:opacity-40"
+                style={{ background: "#1A1A1F" }}
+              >
+                Envoyer
+                <Send size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
