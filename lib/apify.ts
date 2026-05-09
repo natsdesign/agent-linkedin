@@ -85,7 +85,7 @@ function mapItems(items: Record<string, unknown>[]): ScrapedLinkedInPost[] {
     .map((item): ScrapedLinkedInPost => ({
       content:     str(item, "text", "content", "postText", "body"),
       publishedAt: str(item, "postedAt", "publishedAt", "date", "createdAt") || null,
-      likes:    num(item, "likeCount", "likesCount", "numLikes", "likes") || nestedNum(item, "reactions.count"),
+      likes:    num(item, "likeCount", "likesCount", "numLikes", "totalReactionCount", "likes") || nestedNum(item, "reactions.count"),
       comments: num(item, "commentCount", "commentsCount", "numComments", "comments"),
       shares:   num(item, "repostCount", "shareCount", "sharesCount", "numShares", "shares"),
       views:    num(item, "viewCount", "impressionCount", "numImpressions", "views"),
@@ -94,12 +94,13 @@ function mapItems(items: Record<string, unknown>[]): ScrapedLinkedInPost[] {
     .filter((p) => p.content.trim().length > 0);
 }
 
-// Synchronous scrape — used by my-posts/import (long-running server context)
+// Synchronous scrape — used by my-posts/import and cron (long-running server context)
 export async function scrapeLinkedInPosts(
-  linkedinUrl: string
+  linkedinUrl: string,
+  maxPosts = 30
 ): Promise<ScrapedLinkedInPost[]> {
   const run = await client.actor("harvestapi/linkedin-profile-posts").call(
-    { targetUrls: [linkedinUrl], maxPosts: 30, includeQuotePosts: true, includeReposts: false, scrapeComments: false, scrapeReactions: false },
+    { targetUrls: [linkedinUrl], maxPosts, includeQuotePosts: true, includeReposts: false, scrapeComments: false, scrapeReactions: false },
     { waitSecs: 120 }
   );
   const { items } = await client.dataset(run.defaultDatasetId).listItems();

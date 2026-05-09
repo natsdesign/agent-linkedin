@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { scrapeLinkedInPosts } from "@/lib/apify";
-import { analyzePost } from "@/lib/claude";
+import { analyzePost, generateDailyReport } from "@/lib/claude";
 import { refreshInsights } from "@/lib/insights";
 
 // Allow up to 300s on Vercel Pro for sequential scraping
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const threshold = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString();
   const { data: creators, error: creatorsError } = await supabase
     .from("creators")
-    .select("id, linkedin_url, name")
+    .select("id, linkedin_url, name, last_scraped_at")
     .or(`last_scraped_at.is.null,last_scraped_at.lt.${threshold}`);
 
   if (creatorsError) {
@@ -37,12 +37,13 @@ export async function GET(req: NextRequest) {
   let totalPostsAdded = 0;
   let creatorsScraped = 0;
   const errors: { creator_id: string; name: string; error: string }[] = [];
+  const allNewPosts: Array<{ content: string; likes: number; creator: string }> = [];
 
   for (const creator of due) {
     try {
-      const scrapedPosts = await scrapeLinkedInPosts(creator.linkedin_url);
+      // Only scrape 5 most recent posts (delta mode — avoids re-processing 30 posts daily)
+      const scrapedPosts = await scrapeLinkedInPosts(creator.linkedin_url, 5);
 
-      // Log Apify run
       void supabase.from("apify_runs").insert({
         creator_id:    creator.id,
         run_id:        `cron-${Date.now()}-${creator.id}`,
@@ -59,7 +60,13 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Filter posts already in DB
+      // Filter to posts published after last_scraped_at (skip already-seen posts)
+      const since = (creator as { last_scraped_at: string | null }).last_scraped_at;
+      const recentPosts = since
+        ? scrapedPosts.filter((p) => p.publishedAt && p.publishedAt > since)
+        : scrapedPosts;
+
+      // Also deduplicate against existing DB posts by URL
       const { data: existing } = await supabase
         .from("scraped_posts")
         .select("post_url")
@@ -69,12 +76,11 @@ export async function GET(req: NextRequest) {
         (existing ?? []).map((p: { post_url: string | null }) => p.post_url).filter(Boolean)
       );
 
-      const newPosts = scrapedPosts.filter(
+      const newPosts = recentPosts.filter(
         (p) => !p.postUrl || !existingUrls.has(p.postUrl)
       );
 
       if (newPosts.length > 0) {
-        // Analyze with Claude Haiku (parallel — usage logged inside analyzePost)
         const analyses = await Promise.all(
           newPosts.map((p) => analyzePost(p.content).catch(() => null))
         );
@@ -97,6 +103,10 @@ export async function GET(req: NextRequest) {
 
         await supabase.from("scraped_posts").insert(rows);
         totalPostsAdded += newPosts.length;
+
+        // Track best post from this creator for the daily report
+        const topPost = newPosts.reduce((best, p) => (p.likes > best.likes ? p : best), newPosts[0]);
+        allNewPosts.push({ content: topPost.content, likes: topPost.likes, creator: creator.name });
       }
 
       await supabase
@@ -117,6 +127,24 @@ export async function GET(req: NextRequest) {
   // Refresh insights once after all scrapes
   if (totalPostsAdded > 0) {
     await refreshInsights().catch(console.error);
+  }
+
+  // Generate and store daily report with Claude Haiku
+  const topPosts = allNewPosts.sort((a, b) => b.likes - a.likes).slice(0, 3);
+  const topPost = topPosts[0] ?? null;
+
+  try {
+    const report = await generateDailyReport({ newPostsCount: totalPostsAdded, topPosts });
+    await supabase.from("daily_reports").insert({
+      new_posts_count:  totalPostsAdded,
+      top_post_content: topPost?.content ?? null,
+      top_post_likes:   topPost?.likes ?? 0,
+      top_creator:      topPost?.creator ?? null,
+      insights_summary: report.insights_summary,
+      recommendations:  report.recommendations,
+    });
+  } catch (err) {
+    console.error("[daily_report error]", err);
   }
 
   await supabase.from("cron_logs").insert({

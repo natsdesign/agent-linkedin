@@ -210,6 +210,53 @@ ${currentContent}`,
   }
 }
 
+// ─── Daily report generation (Haiku — cheap) ─────────────────────────────────
+
+export type DailyReport = {
+  insights_summary: string;
+  recommendations: string[];
+};
+
+export async function generateDailyReport(params: {
+  newPostsCount: number;
+  topPosts: Array<{ content: string; likes: number; creator: string }>;
+}): Promise<DailyReport> {
+  const { newPostsCount, topPosts } = params;
+  const postsStr = topPosts
+    .map((p, i) => `Post ${i + 1} (${p.creator}, ${p.likes} likes) :\n${p.content.slice(0, 300)}`)
+    .join("\n\n");
+
+  const message = await anthropic.messages.create({
+    model: HAIKU,
+    max_tokens: 400,
+    system: `Tu es un analyste contenu LinkedIn. Réponds UNIQUEMENT avec un objet JSON valide, sans markdown :
+{"insights_summary":"résumé en 2 phrases","recommendations":["reco 1","reco 2","reco 3"]}`,
+    messages: [
+      {
+        role: "user",
+        content: `${newPostsCount} nouveau${newPostsCount > 1 ? "x" : ""} post${newPostsCount > 1 ? "s" : ""} scraped aujourd'hui.
+
+${topPosts.length > 0 ? `Top posts :\n${postsStr}` : "Aucun nouveau post."}
+
+Génère un résumé des tendances (2 phrases max) et exactement 3 recommandations actionnables pour le contenu de cette semaine.`,
+      },
+    ],
+  });
+
+  logUsage("daily_report", HAIKU, message.usage.input_tokens, message.usage.output_tokens);
+
+  const raw = message.content[0].type === "text" ? message.content[0].text : "{}";
+  try {
+    const parsed = JSON.parse(stripFences(raw));
+    return {
+      insights_summary: parsed.insights_summary ?? "",
+      recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations.slice(0, 3) : [],
+    };
+  } catch {
+    return { insights_summary: "Analyse non disponible.", recommendations: [] };
+  }
+}
+
 // ─── Conversational generate (legacy, kept for /api/generate) ─────────────────
 
 export async function generatePost(params: {

@@ -38,6 +38,18 @@ type CronLog = {
   errors: unknown[];
 };
 
+type DailyReport = {
+  id: string;
+  date: string;
+  new_posts_count: number;
+  top_post_content: string | null;
+  top_post_likes: number;
+  top_creator: string | null;
+  insights_summary: string | null;
+  recommendations: string[] | null;
+  created_at: string;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TABS: Tab[] = [
@@ -328,7 +340,7 @@ function SectionLabel({
 
 // ─── Cron section ─────────────────────────────────────────────────────────────
 
-function CronSection({ logs }: { logs: CronLog[] }) {
+function CronSection({ logs, dailyReports }: { logs: CronLog[]; dailyReports: DailyReport[] }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -345,59 +357,97 @@ function CronSection({ logs }: { logs: CronLog[] }) {
       </button>
 
       {open && (
-        <div className="mt-3 card overflow-hidden">
-          <div className="px-4 py-3 border-b border-zinc-100 bg-zinc-50/50">
-            <p className="text-xs text-zinc-400">Prochain scraping : demain à 8h00</p>
+        <div className="mt-3 space-y-4">
+          {/* Cron logs table */}
+          <div className="card overflow-hidden">
+            <div className="px-4 py-3 border-b border-zinc-100 bg-zinc-50/50">
+              <p className="text-xs text-zinc-400">Prochain scraping : demain à 8h00 — max 5 posts/créateur</p>
+            </div>
+
+            {logs.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <p className="text-sm text-zinc-400">Aucune analyse automatique effectuée</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-zinc-100 bg-zinc-50/30">
+                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Date</th>
+                    <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Créateurs</th>
+                    <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Posts</th>
+                    <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Erreurs</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {logs.map((log) => (
+                    <tr key={log.id} className="hover:bg-zinc-50/50 transition-colors">
+                      <td className="px-4 py-2.5 text-xs text-zinc-500">
+                        {new Date(log.ran_at).toLocaleDateString("fr-FR", {
+                          day:    "2-digit",
+                          month:  "2-digit",
+                          year:   "numeric",
+                          hour:   "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-right text-zinc-700 font-medium">
+                        {log.creators_scraped}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-right text-zinc-700 font-medium">
+                        {log.posts_added}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-right">
+                        <span
+                          className={cn(
+                            "font-medium",
+                            Array.isArray(log.errors) && log.errors.length > 0
+                              ? "text-red-500"
+                              : "text-zinc-300"
+                          )}
+                        >
+                          {Array.isArray(log.errors) ? log.errors.length : 0}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
-          {logs.length === 0 ? (
-            <div className="px-4 py-8 text-center">
-              <p className="text-sm text-zinc-400">Aucune analyse automatique effectuée</p>
+          {/* Daily reports */}
+          {dailyReports.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 px-1">Rapports quotidiens</p>
+              {dailyReports.map((report) => (
+                <div key={report.id} className="card p-4">
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-800">
+                        {new Date(report.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
+                      </p>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        {report.new_posts_count} nouveau{report.new_posts_count > 1 ? "x" : ""} post{report.new_posts_count > 1 ? "s" : ""}
+                        {report.top_creator ? ` · Top : ${report.top_creator} (${report.top_post_likes} likes)` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  {report.insights_summary && (
+                    <p className="text-xs text-zinc-600 leading-relaxed mb-3">{report.insights_summary}</p>
+                  )}
+                  {report.recommendations && report.recommendations.length > 0 && (
+                    <ul className="space-y-1">
+                      {report.recommendations.map((rec, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-zinc-500">
+                          <span className="text-brand-400 font-bold shrink-0">→</span>
+                          {rec}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
             </div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50/30">
-                  <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Date</th>
-                  <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Créateurs</th>
-                  <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Posts</th>
-                  <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Erreurs</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-zinc-50/50 transition-colors">
-                    <td className="px-4 py-2.5 text-xs text-zinc-500">
-                      {new Date(log.ran_at).toLocaleDateString("fr-FR", {
-                        day:    "2-digit",
-                        month:  "2-digit",
-                        year:   "numeric",
-                        hour:   "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-right text-zinc-700 font-medium">
-                      {log.creators_scraped}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-right text-zinc-700 font-medium">
-                      {log.posts_added}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-right">
-                      <span
-                        className={cn(
-                          "font-medium",
-                          Array.isArray(log.errors) && log.errors.length > 0
-                            ? "text-red-500"
-                            : "text-zinc-300"
-                        )}
-                      >
-                        {Array.isArray(log.errors) ? log.errors.length : 0}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           )}
         </div>
       )}
@@ -413,7 +463,8 @@ export default function InspirationsPage() {
   const [activeTab, setActiveTab] = useState<Category | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [insights, setInsights]   = useState<InsightData | null>(null);
-  const [cronLogs, setCronLogs]   = useState<CronLog[]>([]);
+  const [cronLogs,      setCronLogs]      = useState<CronLog[]>([]);
+  const [dailyReports,  setDailyReports]  = useState<DailyReport[]>([]);
   const { showToast } = useToast();
 
   async function fetchCreators() {
@@ -431,6 +482,10 @@ export default function InspirationsPage() {
     fetch("/api/cron/logs")
       .then((r) => (r.ok ? r.json() : []))
       .then(setCronLogs)
+      .catch(() => {});
+    fetch("/api/daily-reports")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setDailyReports)
       .catch(() => {});
   }, []);
 
@@ -566,7 +621,7 @@ export default function InspirationsPage() {
       <InsightsSection data={insights} />
 
       {/* Cron */}
-      <CronSection logs={cronLogs} />
+      <CronSection logs={cronLogs} dailyReports={dailyReports} />
 
       <AddCreatorModal
         open={modalOpen}
