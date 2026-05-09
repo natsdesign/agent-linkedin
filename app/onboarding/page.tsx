@@ -70,6 +70,7 @@ const inputCls =
 export default function OnboardingPage() {
   const router = useRouter();
   const [checking,   setChecking]   = useState(true);
+  const [isUpdate,   setIsUpdate]   = useState(false);
   const [step,       setStep]       = useState(0);
   const [form,       setForm]       = useState<FormData>(INITIAL);
   const [submitting, setSubmitting] = useState(false);
@@ -79,11 +80,21 @@ export default function OnboardingPage() {
     fetch("/api/profile")
       .then((r) => r.json())
       .then((data) => {
-        if (data?.id) router.replace("/inspirations");
-        else setChecking(false);
+        if (data?.id) {
+          setIsUpdate(true);
+          setForm({
+            niche:             data.niche             ?? "",
+            target_audience:   data.target_audience   ?? "",
+            posting_frequency: data.posting_frequency ?? 5,
+            tone:              data.tone              ?? "",
+            goals:             data.goals             ?? [],
+            context:           data.context           ?? "",
+          });
+        }
+        setChecking(false);
       })
       .catch(() => setChecking(false));
-  }, [router]);
+  }, []);
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -334,7 +345,7 @@ export default function OnboardingPage() {
               ) : (
                 <>
                   <Check size={15} />
-                  Terminer
+                  {isUpdate ? "Mettre à jour" : "Terminer"}
                 </>
               )}
             </button>
