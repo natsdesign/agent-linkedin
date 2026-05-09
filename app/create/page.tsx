@@ -263,14 +263,15 @@ function PostCard({
 
 export default function CreatePage() {
   const router = useRouter();
-  const [phase,       setPhase]       = useState<Phase>("loading");
-  const [step,        setStep]        = useState<Step>(1);
-  const [agentTyping, setAgentTyping] = useState(false);
-  const [messages,    setMessages]    = useState<ChatMessage[]>([]);
-  const [agentCtx,    setAgentCtx]    = useState<AgentContext | null>(null);
-  const [answers,     setAnswers]     = useState<Partial<Answers>>({});
-  const [input,       setInput]       = useState("");
-  const [posts,       setPosts]       = useState<PostState[]>([]);
+  const [phase,          setPhase]          = useState<Phase>("loading");
+  const [step,           setStep]           = useState<Step>(1);
+  const [agentTyping,    setAgentTyping]    = useState(false);
+  const [messages,       setMessages]       = useState<ChatMessage[]>([]);
+  const [agentCtx,       setAgentCtx]       = useState<AgentContext | null>(null);
+  const [answers,        setAnswers]        = useState<Partial<Answers>>({});
+  const [input,          setInput]          = useState("");
+  const [posts,          setPosts]          = useState<PostState[]>([]);
+  const [budgetExceeded, setBudgetExceeded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
 
@@ -341,9 +342,16 @@ export default function CreatePage() {
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(answers),
       });
-      if (!res.ok) throw new Error("Generation failed");
-      const data: GeneratedPost[] = await res.json();
-      setPosts(data.map((p) => ({ ...p, regenerating: false, validating: false })));
+      const data = await res.json();
+      if (!res.ok) {
+        if (data?.error === "budget_exceeded") {
+          setBudgetExceeded(true);
+          setPhase("chat");
+          return;
+        }
+        throw new Error("Generation failed");
+      }
+      setPosts((data as GeneratedPost[]).map((p) => ({ ...p, regenerating: false, validating: false })));
       setPhase("posts");
     } catch {
       setPhase("chat");
@@ -452,8 +460,21 @@ export default function CreatePage() {
 
   // ── Chat ───────────────────────────────────────────────────────────────────
 
+  const nextMonth = new Date();
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const nextMonthLabel = nextMonth.toLocaleDateString("fr-FR", { month: "long" });
+
   return (
     <div className="flex flex-col h-screen bg-zinc-50">
+      {/* Budget exceeded banner */}
+      {budgetExceeded && (
+        <div className="flex items-center gap-3 px-6 py-3 bg-red-50 border-b border-red-200 text-red-700 text-sm shrink-0">
+          <span>⚠️</span>
+          <span>
+            Budget mensuel atteint. Prochain reset : 1er {nextMonthLabel}
+          </span>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 bg-white shrink-0">
         <div className="w-9 h-9 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center">

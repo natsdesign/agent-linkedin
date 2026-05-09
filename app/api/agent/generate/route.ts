@@ -48,6 +48,12 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
+    if (err instanceof Error && err.message === "BUDGET_EXCEEDED") {
+      return NextResponse.json(
+        { error: "budget_exceeded", message: "Budget mensuel atteint (10€). Réinitialisé le 1er du mois." },
+        { status: 402 }
+      );
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Génération échouée." },
       { status: 502 }

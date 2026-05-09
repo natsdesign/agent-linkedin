@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
+import { guardedClaudeCall } from "@/lib/budget-guard";
 
 export const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -60,14 +61,14 @@ const HAIKU = "claude-haiku-4-5-20251001";
 const SONNET = "claude-sonnet-4-6";
 
 export async function analyzePost(content: string): Promise<PostAnalysis> {
-  const message = await anthropic.messages.create({
+  const message = await guardedClaudeCall(() => anthropic.messages.create({
     model: HAIKU,
     max_tokens: 150,
     system: `Analyze a LinkedIn post. Return ONLY a raw JSON object — no markdown, no explanation:
 {"hook_type":"question"|"chiffre"|"statement"|"storytelling"|"liste","format":"texte"|"liste"|"storytelling"|"carrousel"|"court","themes":["theme1","theme2"],"engagement_prediction":"low"|"medium"|"high"}
 themes: max 3 short strings in the post language.`,
     messages: [{ role: "user", content }],
-  });
+  }));
 
   logUsage("analyze", HAIKU, message.usage.input_tokens, message.usage.output_tokens);
 
@@ -125,7 +126,7 @@ export async function generatePosts(params: {
   const themesStr  = insights.best_themes.map((t) => t.value).join(", ")  || "non défini";
   const formatsStr = insights.best_formats.map((f) => f.value).join(", ") || "texte";
 
-  const message = await anthropic.messages.create({
+  const message = await guardedClaudeCall(() => anthropic.messages.create({
     model: SONNET,
     max_tokens: 4000,
     system: `Tu es un ghostwriter LinkedIn expert. Tu génères des posts LinkedIn percutants et authentiques en français.
@@ -157,7 +158,7 @@ Retourne exactement ${count} objets dans ce tableau JSON :
 [{"content":"texte complet du post avec sauts de ligne","hook":"première ligne accroche","cta":"dernière ligne CTA","subject":"sujet traité","format":"${format}"}]`,
       },
     ],
-  });
+  }));
 
   logUsage("generate", SONNET, message.usage.input_tokens, message.usage.output_tokens);
 
@@ -182,7 +183,7 @@ export async function regenerateSinglePost(params: {
 }): Promise<GeneratedPostData> {
   const { currentContent, subject, tone, format } = params;
 
-  const message = await anthropic.messages.create({
+  const message = await guardedClaudeCall(() => anthropic.messages.create({
     model: HAIKU,
     max_tokens: 800,
     system: `Tu es un ghostwriter LinkedIn. Réponds UNIQUEMENT avec un objet JSON valide, sans markdown :
@@ -197,7 +198,7 @@ Version actuelle (à surpasser) :
 ${currentContent}`,
       },
     ],
-  });
+  }));
 
   logUsage("regenerate", HAIKU, message.usage.input_tokens, message.usage.output_tokens);
 
@@ -226,7 +227,7 @@ export async function generateDailyReport(params: {
     .map((p, i) => `Post ${i + 1} (${p.creator}, ${p.likes} likes) :\n${p.content.slice(0, 300)}`)
     .join("\n\n");
 
-  const message = await anthropic.messages.create({
+  const message = await guardedClaudeCall(() => anthropic.messages.create({
     model: HAIKU,
     max_tokens: 400,
     system: `Tu es un analyste contenu LinkedIn. Réponds UNIQUEMENT avec un objet JSON valide, sans markdown :
@@ -241,7 +242,7 @@ ${topPosts.length > 0 ? `Top posts :\n${postsStr}` : "Aucun nouveau post."}
 Génère un résumé des tendances (2 phrases max) et exactement 3 recommandations actionnables pour le contenu de cette semaine.`,
       },
     ],
-  });
+  }));
 
   logUsage("daily_report", HAIKU, message.usage.input_tokens, message.usage.output_tokens);
 
@@ -272,7 +273,7 @@ export async function generatePost(params: {
       ].filter(Boolean).join("\n")
     : "";
 
-  const message = await anthropic.messages.create({
+  const message = await guardedClaudeCall(() => anthropic.messages.create({
     model: SONNET,
     max_tokens: 1024,
     system: `You are an expert LinkedIn ghostwriter. Write compelling, authentic posts that drive engagement.
@@ -283,7 +284,7 @@ Use line breaks for readability, a strong opening hook, and a clear call to acti
         content: `Write a LinkedIn post about: ${params.topic}\nTone: ${params.tone}\n${profileLines}`,
       },
     ],
-  });
+  }));
 
   logUsage("generate", SONNET, message.usage.input_tokens, message.usage.output_tokens);
 

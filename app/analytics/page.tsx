@@ -256,6 +256,7 @@ export default function AnalyticsPage() {
   const [showLink, setShowLink] = useState(false);
   const [showUnlink, setShowUnlink] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [budgetExceeded, setBudgetExceeded] = useState(false);
 
   const loadData = useCallback(async () => {
     const [postsData, profileData] = await Promise.all([
@@ -287,7 +288,11 @@ export default function AnalyticsPage() {
     setAnalyzing(true);
     const res = await fetch("/api/my-posts/analyze", { method: "POST" });
     const data = await res.json();
-    if (res.ok) setAnalysis(data);
+    if (!res.ok && data?.error === "budget_exceeded") {
+      setBudgetExceeded(true);
+    } else if (res.ok) {
+      setAnalysis(data);
+    }
     setAnalyzing(false);
   }
 
@@ -401,10 +406,22 @@ export default function AnalyticsPage() {
     );
   }
 
+  const nextMonth = new Date();
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const nextMonthLabel = nextMonth.toLocaleDateString("fr-FR", { month: "long" });
+
   // ── État lié ───────────────────────────────────────────────────────────────
   return (
     <div className="flex-1 overflow-y-auto bg-zinc-50 p-8">
       <div className="max-w-5xl mx-auto space-y-8">
+
+        {/* Budget exceeded banner */}
+        {budgetExceeded && (
+          <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700 text-sm">
+            <span>⚠️</span>
+            <span>Budget mensuel atteint. Prochain reset : 1er {nextMonthLabel}</span>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex items-start justify-between">

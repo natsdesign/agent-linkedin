@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { anthropic } from "@/lib/claude";
+import { guardedClaudeCall } from "@/lib/budget-guard";
 
 const SONNET = "claude-sonnet-4-6";
 
@@ -29,9 +30,11 @@ Likes: ${p.likes} | Commentaires: ${p.comments} | Format: ${p.format ?? "?"} | H
     )
     .join("\n\n");
 
-  const message = await anthropic.messages.create({
-    model: SONNET,
-    max_tokens: 1000,
+  let message;
+  try {
+    message = await guardedClaudeCall(() => anthropic.messages.create({
+      model: SONNET,
+      max_tokens: 1000,
     system: `Tu es un expert en marketing LinkedIn. Analyse les performances des posts fournis et retourne UNIQUEMENT un objet JSON valide, sans markdown ni explication.`,
     messages: [
       {
@@ -50,8 +53,16 @@ Retourne un JSON avec cette structure exacte :
   "recommendations": ["string","string","string"]
 }`,
       },
-    ],
-  });
+    ]));
+  } catch (err) {
+    if (err instanceof Error && err.message === "BUDGET_EXCEEDED") {
+      return NextResponse.json(
+        { error: "budget_exceeded", message: "Budget mensuel atteint (10€). Réinitialisé le 1er du mois." },
+        { status: 402 }
+      );
+    }
+    throw err;
+  }
 
   // Log usage
   const { input_tokens, output_tokens } = message.usage;

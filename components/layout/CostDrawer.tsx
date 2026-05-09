@@ -101,9 +101,9 @@ export function CostDrawer({ open, onClose }: Props) {
   const budgetPct = Math.min((monthEur / BUDGET_EUR) * 100, 100);
 
   const budgetColor =
-    budgetPct >= 80 ? "bg-red-400" :
-    budgetPct >= 50 ? "bg-amber-400" :
-    "bg-brand-500";
+    budgetPct >= 90 ? "bg-red-400" :
+    budgetPct >= 70 ? "bg-amber-400" :
+    "bg-emerald-500";
 
   return (
     <>
