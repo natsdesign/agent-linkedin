@@ -16,21 +16,13 @@ import type { Category, CreatorWithCount } from "@/types";
 
 // ─── Category badge config ────────────────────────────────────────────────────
 
-const CATEGORY_CONFIG: Record<Category, { label: string; className: string }> = {
-  competitor:  { label: "Concurrent",   className: "bg-red-50 text-red-600 border-red-200" },
-  top_creator: { label: "Top créateur", className: "bg-brand-50 text-brand-700 border-brand-200" },
-  influencer:  { label: "Influenceur",  className: "bg-violet-50 text-violet-600 border-violet-200" },
+const CATEGORY_CONFIG: Record<Category, { label: string; bg: string; color: string }> = {
+  competitor:  { label: "Concurrent",   bg: "#450A0A", color: "#EF4444" },
+  top_creator: { label: "Top créateur", bg: "#064E3B", color: "#10B981" },
+  influencer:  { label: "Influenceur",  bg: "#2D1B69", color: "#A78BFA" },
 };
 
-// ─── Avatar gradients (deterministic by first char) ───────────────────────────
-
-const AVATAR_GRADIENTS = [
-  "from-brand-400 to-teal-500",
-  "from-violet-400 to-indigo-500",
-  "from-amber-400 to-orange-500",
-  "from-rose-400 to-pink-500",
-  "from-sky-400 to-blue-500",
-];
+// ─── Avatar ───────────────────────────────────────────────────────────────────
 
 function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
   const [imgError, setImgError] = useState(false);
@@ -42,17 +34,15 @@ function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null })
     .join("")
     .toUpperCase();
 
-  const gradient = AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
-
   if (avatarUrl && !imgError) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={avatarUrl}
         alt={name}
-        width={44}
-        height={44}
-        className="w-11 h-11 rounded-full object-cover shrink-0"
+        width={36}
+        height={36}
+        className="w-9 h-9 rounded-full object-cover shrink-0"
         onError={() => setImgError(true)}
       />
     );
@@ -60,10 +50,8 @@ function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null })
 
   return (
     <div
-      className={cn(
-        "w-11 h-11 rounded-full bg-gradient-to-br flex items-center justify-center text-white font-semibold text-sm shrink-0",
-        gradient
-      )}
+      className="w-9 h-9 rounded-full flex items-center justify-center text-[#8B8B9E] font-semibold text-xs shrink-0"
+      style={{ background: "#1A1A1F", border: "1px solid #2A2A32" }}
     >
       {initials}
     </div>
@@ -88,11 +76,11 @@ type Props = {
 
 export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
   const { showToast } = useToast();
-  const [menuOpen,    setMenuOpen]    = useState(false);
-  const [scraping,    setScraping]    = useState(false);
-  const [runId,       setRunId]       = useState<string | null>(null);
-  const [postsModal,  setPostsModal]  = useState(false);
-  const [local,       setLocal]       = useState<LocalState>({
+  const [menuOpen,   setMenuOpen]   = useState(false);
+  const [scraping,   setScraping]   = useState(false);
+  const [runId,      setRunId]      = useState<string | null>(null);
+  const [postsModal, setPostsModal] = useState(false);
+  const [local,      setLocal]      = useState<LocalState>({
     last_scraped_at: creator.last_scraped_at,
     post_count:      creator.post_count,
     avatar_url:      creator.avatar_url,
@@ -106,12 +94,10 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
 
   useEffect(() => {
     if (!runId) return;
-
     const timer = setInterval(async () => {
       try {
         const res = await fetch(`/api/creators/${creator.id}/scrape-status?runId=${runId}`);
         if (!res.ok) { setScraping(false); setRunId(null); return; }
-
         const data: { done: boolean; count?: number } = await res.json();
         if (data.done) {
           const statusRes = await fetch(`/api/creators/${creator.id}/status`);
@@ -128,7 +114,6 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
         // ignore poll errors
       }
     }, 5000);
-
     return () => clearInterval(timer);
   }, [runId, creator.id]);
 
@@ -150,7 +135,21 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
 
   return (
     <>
-      <div className="card-hover p-4 flex flex-col gap-4 group">
+      <div
+        className="group flex flex-col gap-3 p-4 rounded-[10px] transition-all duration-150"
+        style={{
+          background: "#1A1A1F",
+          border: "1px solid #2A2A32",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLDivElement).style.borderColor = "#10B981";
+          (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 12px rgba(16,185,129,0.1)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLDivElement).style.borderColor = "#2A2A32";
+          (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+        }}
+      >
         {/* Top row */}
         <div className="flex items-start gap-3">
           <Avatar name={creator.name} avatarUrl={local.avatar_url} />
@@ -158,14 +157,14 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-1">
               <div className="min-w-0">
-                <p className="font-semibold text-zinc-900 text-sm leading-tight truncate">
+                <p className="font-semibold text-[#F0F0F5] text-sm leading-tight truncate">
                   {creator.name}
                 </p>
                 <a
                   href={creator.linkedin_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-zinc-400 hover:text-brand-500 transition-colors truncate block"
+                  className="text-xs text-[#8B8B9E] hover:text-[#10B981] transition-colors truncate block"
                 >
                   {creator.linkedin_url.replace(/^https?:\/\/(www\.)?/, "")}
                 </a>
@@ -175,7 +174,7 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
               <div className="relative shrink-0">
                 <button
                   onClick={() => setMenuOpen((v) => !v)}
-                  className="p-1 rounded-md text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 transition-all opacity-0 group-hover:opacity-100"
+                  className="p-1 rounded-md text-[#55555F] hover:text-[#8B8B9E] hover:bg-[#222228] transition-all opacity-0 group-hover:opacity-100"
                 >
                   <MoreVertical size={15} />
                 </button>
@@ -183,29 +182,36 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
                 {menuOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                    <div className="absolute right-0 top-6 z-20 w-44 bg-white border border-zinc-200 rounded-xl shadow-lg py-1 overflow-hidden">
+                    <div
+                      className="absolute right-0 top-6 z-20 w-44 rounded-[10px] py-1 overflow-hidden"
+                      style={{
+                        background: "#1A1A1F",
+                        border: "1px solid #2A2A32",
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                      }}
+                    >
                       <button
                         onClick={() => { setPostsModal(true); setMenuOpen(false); }}
-                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-[#8B8B9E] hover:text-[#F0F0F5] hover:bg-[#222228] transition-colors"
                       >
-                        <FileText size={14} className="text-zinc-400" />
+                        <FileText size={13} className="text-[#55555F]" />
                         Voir les posts
                       </button>
                       <a
                         href={creator.linkedin_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
+                        className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-[#8B8B9E] hover:text-[#F0F0F5] hover:bg-[#222228] transition-colors"
                       >
-                        <ExternalLink size={14} className="text-zinc-400" />
+                        <ExternalLink size={13} className="text-[#55555F]" />
                         Profil LinkedIn
                       </a>
-                      <div className="my-1 border-t border-zinc-100" />
+                      <div className="my-1" style={{ borderTop: "1px solid #2A2A32" }} />
                       <button
                         onClick={() => { onDelete(creator.id); setMenuOpen(false); }}
-                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-[#EF4444] hover:bg-[#450A0A] transition-colors"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                         Supprimer
                       </button>
                     </div>
@@ -217,10 +223,8 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
             {/* Category badge */}
             {badge && (
               <span
-                className={cn(
-                  "inline-flex items-center mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border",
-                  badge.className
-                )}
+                className="inline-flex items-center mt-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium"
+                style={{ background: badge.bg, color: badge.color }}
               >
                 {badge.label}
               </span>
@@ -229,17 +233,20 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
         </div>
 
         {/* Stats row */}
-        <div className="flex items-center justify-between pt-1 border-t border-zinc-100">
-          <div className="flex items-center gap-3 text-xs text-zinc-400">
+        <div
+          className="flex items-center justify-between pt-2"
+          style={{ borderTop: "1px solid #2A2A32" }}
+        >
+          <div className="flex items-center gap-3 text-xs text-[#55555F]">
             {creator.follower_count != null && creator.follower_count > 0 && (
-              <span>{formatNumber(creator.follower_count)} abonnés</span>
+              <span>{formatNumber(creator.follower_count)} abn.</span>
             )}
             <span>
-              <span className="text-zinc-700 font-semibold">{local.post_count}</span>{" "}
+              <span className="text-[#F0F0F5] font-semibold">{local.post_count}</span>{" "}
               post{local.post_count !== 1 ? "s" : ""}
             </span>
           </div>
-          <span className="text-[11px] text-zinc-300">
+          <span className="text-[11px] text-[#55555F]">
             {local.last_scraped_at ? timeAgo(local.last_scraped_at) : "Jamais scrapé"}
           </span>
         </div>
@@ -249,11 +256,30 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
           onClick={handleScrape}
           disabled={scraping}
           className={cn(
-            "w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold border transition-all active:scale-[0.98]",
+            "w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all duration-150 active:scale-[0.98]",
             scraping
-              ? "border-brand-200 bg-brand-50 text-brand-600 cursor-not-allowed"
-              : "border-zinc-200 bg-zinc-50 text-zinc-500 hover:text-zinc-800 hover:border-zinc-300 hover:bg-zinc-100"
+              ? "cursor-not-allowed"
+              : "cursor-pointer"
           )}
+          style={
+            scraping
+              ? { background: "#0D2B22", color: "#10B981", border: "1px solid #064E3B" }
+              : { background: "transparent", color: "#8B8B9E", border: "1px solid #2A2A32" }
+          }
+          onMouseEnter={(e) => {
+            if (!scraping) {
+              (e.currentTarget as HTMLButtonElement).style.color = "#F0F0F5";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "#3A3A45";
+              (e.currentTarget as HTMLButtonElement).style.background = "#222228";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!scraping) {
+              (e.currentTarget as HTMLButtonElement).style.color = "#8B8B9E";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "#2A2A32";
+              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+            }
+          }}
         >
           {scraping ? (
             <>

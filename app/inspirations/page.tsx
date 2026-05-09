@@ -69,19 +69,19 @@ const EMPTY_LABELS: Record<string, string> = {
 
 function CardSkeleton() {
   return (
-    <div className="card p-4 flex flex-col gap-4 animate-pulse">
+    <div className="rounded-[10px] p-4 flex flex-col gap-4 animate-pulse" style={{ background: "#1A1A1F", border: "1px solid #2A2A32" }}>
       <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-full bg-zinc-100 shrink-0" />
+        <div className="w-9 h-9 rounded-full shrink-0" style={{ background: "#222228" }} />
         <div className="flex-1 space-y-2 pt-1">
-          <div className="h-3.5 bg-zinc-100 rounded w-3/5" />
-          <div className="h-2.5 bg-zinc-100 rounded w-4/5" />
+          <div className="h-3 rounded w-3/5" style={{ background: "#222228" }} />
+          <div className="h-2.5 rounded w-4/5" style={{ background: "#222228" }} />
         </div>
       </div>
-      <div className="flex justify-between pt-1 border-t border-zinc-100">
-        <div className="h-2.5 bg-zinc-100 rounded w-1/4" />
-        <div className="h-2.5 bg-zinc-100 rounded w-1/4" />
+      <div className="flex justify-between pt-2" style={{ borderTop: "1px solid #2A2A32" }}>
+        <div className="h-2.5 rounded w-1/4" style={{ background: "#222228" }} />
+        <div className="h-2.5 rounded w-1/4" style={{ background: "#222228" }} />
       </div>
-      <div className="h-8 bg-zinc-100 rounded-lg" />
+      <div className="h-8 rounded-lg" style={{ background: "#222228" }} />
     </div>
   );
 }
@@ -98,16 +98,20 @@ function EmptyState({ tab, onAdd }: { tab: Category | null; onAdd: () => void })
 
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center mb-5">
-        <Users size={24} className="text-brand-500" />
+      <div
+        className="w-12 h-12 rounded-[10px] flex items-center justify-center mb-4"
+        style={{ background: "#0D2B22", border: "1px solid #064E3B" }}
+      >
+        <Users size={20} className="text-[#10B981]" />
       </div>
-      <h2 className="text-base font-semibold text-zinc-800 mb-2">{label}</h2>
-      <p className="text-sm text-zinc-400 mb-7 max-w-xs leading-relaxed">{sub}</p>
+      <h2 className="text-sm font-semibold text-[#F0F0F5] mb-2">{label}</h2>
+      <p className="text-sm text-[#8B8B9E] mb-7 max-w-xs leading-relaxed">{sub}</p>
       <button
         onClick={onAdd}
-        className="flex items-center gap-2 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-lg transition-all active:scale-[0.98]"
+        className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all active:scale-[0.98]"
+        style={{ background: "#10B981", color: "#0F0F10" }}
       >
-        <Plus size={15} />
+        <Plus size={14} />
         Ajouter un créateur
       </button>
     </div>
@@ -123,10 +127,10 @@ function KPISection({
   creators: CreatorWithCount[];
   insights: InsightData | null;
 }) {
-  const totalPosts   = creators.reduce((s, c) => s + c.post_count, 0);
-  const activeSrc    = creators.filter((c) => c.post_count > 0).length;
-  const topFormat    = insights?.best_formats[0];
-  const topHook      = insights?.best_hooks[0];
+  const totalPosts = creators.reduce((s, c) => s + c.post_count, 0);
+  const activeSrc  = creators.filter((c) => c.post_count > 0).length;
+  const topFormat  = insights?.best_formats[0];
+  const topHook    = insights?.best_hooks[0];
 
   const kpis = [
     {
@@ -134,24 +138,18 @@ function KPISection({
       value: creators.length,
       sub: `${activeSrc} actif${activeSrc !== 1 ? "s" : ""}`,
       icon: Users,
-      color: "text-brand-500",
-      bg: "bg-brand-50",
     },
     {
       label: "Posts analysés",
       value: totalPosts,
       sub: "au total",
       icon: FileText,
-      color: "text-violet-500",
-      bg: "bg-violet-50",
     },
     {
       label: "Format dominant",
       value: topFormat?.value ?? "—",
       sub: topFormat ? `${topFormat.percentage}% des posts` : "Scraper des créateurs",
       icon: Layout,
-      color: "text-amber-500",
-      bg: "bg-amber-50",
       capitalize: true,
     },
     {
@@ -159,35 +157,24 @@ function KPISection({
       value: topHook?.value ?? "—",
       sub: topHook ? `${topHook.percentage}% des posts` : "Scraper des créateurs",
       icon: TrendingUp,
-      color: "text-rose-500",
-      bg: "bg-rose-50",
       capitalize: true,
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       {kpis.map((kpi) => (
-        <div key={kpi.label} className="card p-5">
-          <div className="flex items-start justify-between mb-4">
-            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", kpi.bg)}>
-              <kpi.icon size={15} className={kpi.color} />
-            </div>
-          </div>
+        <div key={kpi.label} className="card">
+          <p className="label-section mb-3">{kpi.label}</p>
           <p
             className={cn(
-              "text-2xl font-semibold text-zinc-900 leading-none mb-1.5 truncate",
+              "text-2xl font-bold text-[#F0F0F5] leading-none mb-1 font-mono truncate",
               kpi.capitalize && "capitalize"
             )}
           >
             {kpi.value}
           </p>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[11px] text-zinc-400 leading-none">{kpi.sub}</span>
-          </div>
-          <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wide mt-3">
-            {kpi.label}
-          </p>
+          <p className="text-[11px] text-[#55555F]">{kpi.sub}</p>
         </div>
       ))}
     </div>
@@ -196,29 +183,29 @@ function KPISection({
 
 // ─── Bar chart ────────────────────────────────────────────────────────────────
 
-function BarChart({ items }: { items: InsightEntry[] }) {
+function InsightBar({ items }: { items: InsightEntry[] }) {
   const max = Math.max(...items.map((i) => i.percentage), 1);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {items.slice(0, 5).map((item, index) => (
         <div key={item.value}>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[11px] font-mono text-zinc-300 w-3 shrink-0">{index + 1}</span>
-              <span className="text-sm text-zinc-700 capitalize truncate">{item.value}</span>
+              <span className="text-[11px] font-mono text-[#55555F] w-3 shrink-0">{index + 1}</span>
+              <span className="text-sm text-[#F0F0F5] capitalize truncate">{item.value}</span>
             </div>
             <div className="flex items-center gap-2 shrink-0 ml-2">
-              <span className="text-[11px] text-zinc-400">{item.count}×</span>
-              <span className="text-xs font-semibold text-zinc-500 w-9 text-right">
+              <span className="text-[11px] text-[#55555F]">{item.count}×</span>
+              <span className="text-xs font-semibold text-[#8B8B9E] w-9 text-right">
                 {item.percentage}%
               </span>
             </div>
           </div>
-          <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+          <div className="h-1 rounded-full overflow-hidden" style={{ background: "#222228" }}>
             <div
-              className="h-full bg-brand-400 rounded-full transition-all duration-700"
-              style={{ width: `${(item.percentage / max) * 100}%` }}
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${(item.percentage / max) * 100}%`, background: "#10B981" }}
             />
           </div>
         </div>
@@ -239,12 +226,13 @@ function InsightsSection({ data }: { data: InsightData | null }) {
   if (!hasData) {
     return (
       <div className="mt-8">
-        <SectionLabel icon={Hash} title="Analyse du contenu" />
-        <div className="card p-8 text-center mt-4">
-          <div className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center mx-auto mb-3">
-            <Hash size={18} className="text-zinc-300" />
-          </div>
-          <p className="text-sm text-zinc-400">
+        <p className="label-section mb-4 flex items-center gap-2">
+          <Hash size={12} />
+          Analyse du contenu
+        </p>
+        <div className="card text-center py-10">
+          <Hash size={18} className="text-[#55555F] mx-auto mb-3" />
+          <p className="text-sm text-[#55555F]">
             Scrapez des créateurs pour voir les insights apparaître ici
           </p>
         </div>
@@ -254,60 +242,58 @@ function InsightsSection({ data }: { data: InsightData | null }) {
 
   return (
     <div className="mt-8">
-      <SectionLabel icon={Hash} title="Analyse du contenu" />
+      <p className="label-section mb-4 flex items-center gap-2">
+        <Hash size={12} />
+        Analyse du contenu
+      </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Top Hooks */}
-        <div className="card p-5">
-          <div className="flex items-center gap-2 mb-5">
-            <span className="w-1.5 h-4 rounded-full bg-brand-400 shrink-0" />
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-              Top Hooks
-            </h3>
+        <div className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-1 h-4 rounded-full shrink-0" style={{ background: "#10B981" }} />
+            <h3 className="label-section">Top Hooks</h3>
           </div>
           {data!.best_hooks.length > 0 ? (
-            <BarChart items={data!.best_hooks} />
+            <InsightBar items={data!.best_hooks} />
           ) : (
-            <p className="text-sm text-zinc-400">Aucune donnée</p>
+            <p className="text-sm text-[#55555F]">Aucune donnée</p>
           )}
         </div>
 
         {/* Top Formats */}
-        <div className="card p-5">
-          <div className="flex items-center gap-2 mb-5">
-            <span className="w-1.5 h-4 rounded-full bg-violet-400 shrink-0" />
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-              Top Formats
-            </h3>
+        <div className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-1 h-4 rounded-full shrink-0" style={{ background: "#34D399" }} />
+            <h3 className="label-section">Top Formats</h3>
           </div>
           {data!.best_formats.length > 0 ? (
-            <BarChart items={data!.best_formats} />
+            <InsightBar items={data!.best_formats} />
           ) : (
-            <p className="text-sm text-zinc-400">Aucune donnée</p>
+            <p className="text-sm text-[#55555F]">Aucune donnée</p>
           )}
         </div>
 
-        {/* Top Themes */}
-        <div className="card p-5">
-          <div className="flex items-center gap-2 mb-5">
-            <span className="w-1.5 h-4 rounded-full bg-amber-400 shrink-0" />
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-              Top Thèmes
-            </h3>
+        {/* Top Thèmes */}
+        <div className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-1 h-4 rounded-full shrink-0" style={{ background: "#F59E0B" }} />
+            <h3 className="label-section">Top Thèmes</h3>
           </div>
           <div className="flex flex-wrap gap-2">
             {data!.best_themes.slice(0, 8).map((theme, i) => {
-              const weight = i < 2 ? "font-semibold text-zinc-700" : i < 4 ? "font-medium text-zinc-600" : "text-zinc-500";
-              const size   = i < 2 ? "text-sm" : i < 4 ? "text-[13px]" : "text-xs";
+              const opacity = i < 2 ? "text-[#F0F0F5] font-semibold" : i < 4 ? "text-[#8B8B9E] font-medium" : "text-[#55555F]";
+              const size    = i < 2 ? "text-sm" : i < 4 ? "text-[13px]" : "text-xs";
               return (
                 <span
                   key={theme.value}
                   className={cn(
-                    "px-2.5 py-1 rounded-full bg-zinc-50 border border-zinc-200 cursor-default",
-                    "hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 transition-colors",
-                    weight,
+                    "px-2.5 py-1 rounded-md cursor-default transition-colors",
+                    "hover:text-[#10B981]",
+                    opacity,
                     size
                   )}
+                  style={{ background: "#222228", border: "1px solid #2A2A32" }}
                 >
                   {theme.value}
                 </span>
@@ -316,24 +302,6 @@ function InsightsSection({ data }: { data: InsightData | null }) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── Section label helper ─────────────────────────────────────────────────────
-
-function SectionLabel({
-  icon: Icon,
-  title,
-}: {
-  icon: React.ElementType;
-  title: string;
-}) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <Icon size={15} className="text-zinc-400" />
-      <h2 className="text-sm font-semibold text-zinc-700">{title}</h2>
-      <span className="flex-1 h-px bg-zinc-100" />
     </div>
   );
 }
@@ -347,10 +315,10 @@ function CronSection({ logs, dailyReports }: { logs: CronLog[]; dailyReports: Da
     <div className="mt-6 pb-10">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 text-sm font-medium text-zinc-400 hover:text-zinc-600 transition-colors"
+        className="flex items-center gap-2 text-sm font-medium text-[#55555F] hover:text-[#8B8B9E] transition-colors"
       >
         <ChevronDown
-          size={14}
+          size={13}
           className={cn("transition-transform duration-200", open && "rotate-180")}
         />
         Analyse automatique
@@ -359,51 +327,41 @@ function CronSection({ logs, dailyReports }: { logs: CronLog[]; dailyReports: Da
       {open && (
         <div className="mt-3 space-y-4">
           {/* Cron logs table */}
-          <div className="card overflow-hidden">
-            <div className="px-4 py-3 border-b border-zinc-100 bg-zinc-50/50">
-              <p className="text-xs text-zinc-400">Prochain scraping : demain à 8h00 — max 5 posts/créateur</p>
+          <div className="rounded-[10px] overflow-hidden" style={{ border: "1px solid #2A2A32" }}>
+            <div className="px-4 py-3" style={{ background: "#1A1A1F", borderBottom: "1px solid #2A2A32" }}>
+              <p className="text-xs text-[#55555F]">Prochain scraping : demain à 8h00 — max 5 posts/créateur</p>
             </div>
 
             {logs.length === 0 ? (
-              <div className="px-4 py-8 text-center">
-                <p className="text-sm text-zinc-400">Aucune analyse automatique effectuée</p>
+              <div className="px-4 py-8 text-center" style={{ background: "#111115" }}>
+                <p className="text-sm text-[#55555F]">Aucune analyse automatique effectuée</p>
               </div>
             ) : (
-              <table className="w-full">
+              <table className="w-full" style={{ background: "#111115" }}>
                 <thead>
-                  <tr className="border-b border-zinc-100 bg-zinc-50/30">
-                    <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Date</th>
-                    <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Créateurs</th>
-                    <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Posts</th>
-                    <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Erreurs</th>
+                  <tr style={{ borderBottom: "1px solid #2A2A32" }}>
+                    {["Date", "Créateurs", "Posts", "Erreurs"].map((h) => (
+                      <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-[#55555F]">{h}</th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100">
+                <tbody>
                   {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-zinc-50/50 transition-colors">
-                      <td className="px-4 py-2.5 text-xs text-zinc-500">
+                    <tr key={log.id} className="transition-colors" style={{ borderBottom: "1px solid #1E1E26" }}>
+                      <td className="px-4 py-2.5 text-xs text-[#8B8B9E]">
                         {new Date(log.ran_at).toLocaleDateString("fr-FR", {
-                          day:    "2-digit",
-                          month:  "2-digit",
-                          year:   "numeric",
-                          hour:   "2-digit",
-                          minute: "2-digit",
+                          day: "2-digit", month: "2-digit", year: "numeric",
+                          hour: "2-digit", minute: "2-digit",
                         })}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-right text-zinc-700 font-medium">
-                        {log.creators_scraped}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-right text-zinc-700 font-medium">
-                        {log.posts_added}
-                      </td>
+                      <td className="px-4 py-2.5 text-xs text-right text-[#F0F0F5] font-medium">{log.creators_scraped}</td>
+                      <td className="px-4 py-2.5 text-xs text-right text-[#F0F0F5] font-medium">{log.posts_added}</td>
                       <td className="px-4 py-2.5 text-xs text-right">
                         <span
-                          className={cn(
-                            "font-medium",
-                            Array.isArray(log.errors) && log.errors.length > 0
-                              ? "text-red-500"
-                              : "text-zinc-300"
-                          )}
+                          className="font-medium"
+                          style={{
+                            color: Array.isArray(log.errors) && log.errors.length > 0 ? "#EF4444" : "#55555F",
+                          }}
                         >
                           {Array.isArray(log.errors) ? log.errors.length : 0}
                         </span>
@@ -418,28 +376,32 @@ function CronSection({ logs, dailyReports }: { logs: CronLog[]; dailyReports: Da
           {/* Daily reports */}
           {dailyReports.length > 0 && (
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 px-1">Rapports quotidiens</p>
+              <p className="label-section px-1">Rapports quotidiens</p>
               {dailyReports.map((report) => (
-                <div key={report.id} className="card p-4">
+                <div
+                  key={report.id}
+                  className="p-4 rounded-[10px]"
+                  style={{ background: "#1A1A1F", border: "1px solid #2A2A32", borderLeft: "3px solid #10B981" }}
+                >
                   <div className="flex items-start justify-between gap-4 mb-3">
                     <div>
-                      <p className="text-sm font-semibold text-zinc-800">
+                      <p className="text-sm font-semibold text-[#F0F0F5]">
                         {new Date(report.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
                       </p>
-                      <p className="text-xs text-zinc-400 mt-0.5">
+                      <p className="text-xs text-[#55555F] mt-0.5">
                         {report.new_posts_count} nouveau{report.new_posts_count > 1 ? "x" : ""} post{report.new_posts_count > 1 ? "s" : ""}
                         {report.top_creator ? ` · Top : ${report.top_creator} (${report.top_post_likes} likes)` : ""}
                       </p>
                     </div>
                   </div>
                   {report.insights_summary && (
-                    <p className="text-xs text-zinc-600 leading-relaxed mb-3">{report.insights_summary}</p>
+                    <p className="text-xs text-[#8B8B9E] leading-relaxed mb-3">{report.insights_summary}</p>
                   )}
                   {report.recommendations && report.recommendations.length > 0 && (
                     <ul className="space-y-1">
                       {report.recommendations.map((rec, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-zinc-500">
-                          <span className="text-brand-400 font-bold shrink-0">→</span>
+                        <li key={i} className="flex items-start gap-2 text-xs text-[#8B8B9E]">
+                          <span className="text-[#10B981] font-bold shrink-0">→</span>
                           {rec}
                         </li>
                       ))}
@@ -463,8 +425,8 @@ export default function InspirationsPage() {
   const [activeTab, setActiveTab] = useState<Category | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [insights, setInsights]   = useState<InsightData | null>(null);
-  const [cronLogs,      setCronLogs]      = useState<CronLog[]>([]);
-  const [dailyReports,  setDailyReports]  = useState<DailyReport[]>([]);
+  const [cronLogs, setCronLogs]       = useState<CronLog[]>([]);
+  const [dailyReports, setDailyReports] = useState<DailyReport[]>([]);
   const { showToast } = useToast();
 
   async function fetchCreators() {
@@ -475,25 +437,16 @@ export default function InspirationsPage() {
 
   useEffect(() => {
     fetchCreators();
-    fetch("/api/insights")
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setInsights)
-      .catch(() => {});
-    fetch("/api/cron/logs")
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setCronLogs)
-      .catch(() => {});
-    fetch("/api/daily-reports")
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setDailyReports)
-      .catch(() => {});
+    fetch("/api/insights").then((r) => (r.ok ? r.json() : null)).then(setInsights).catch(() => {});
+    fetch("/api/cron/logs").then((r) => (r.ok ? r.json() : [])).then(setCronLogs).catch(() => {});
+    fetch("/api/daily-reports").then((r) => (r.ok ? r.json() : [])).then(setDailyReports).catch(() => {});
   }, []);
 
   async function handleAdd(name: string, linkedinUrl: string, category: Category) {
     const res = await fetch("/api/creators", {
-      method:  "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ name, linkedin_url: linkedinUrl, category }),
+      body: JSON.stringify({ name, linkedin_url: linkedinUrl, category }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -511,7 +464,6 @@ export default function InspirationsPage() {
 
   function handleScrapeDone(id: string, update: { last_scraped_at: string | null; post_count: number; avatar_url: string | null }) {
     setCreators((prev) => prev.map((c) => c.id === id ? { ...c, ...update } : c));
-    // Refresh insights in background
     fetch("/api/insights")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data) setInsights(data); })
@@ -534,36 +486,38 @@ export default function InspirationsPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">Inspirations</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">
+          <h1 className="text-2xl font-semibold text-[#F0F0F5] tracking-tight" style={{ letterSpacing: "-0.02em" }}>
+            Inspirations
+          </h1>
+          <p className="text-sm text-[#55555F] mt-0.5">
             {creators.length} créateur{creators.length !== 1 ? "s" : ""} suivis
           </p>
         </div>
         <div className="flex items-center gap-2.5">
           <Link
             href="/create"
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 border border-zinc-200 hover:border-zinc-300 hover:bg-white rounded-lg transition-all active:scale-[0.98]"
+            className="flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-[#8B8B9E] hover:text-[#F0F0F5] rounded-lg transition-all active:scale-[0.98]"
+            style={{ border: "1px solid #2A2A32" }}
           >
-            <PenSquare size={14} />
+            <PenSquare size={13} />
             Créer des posts
           </Link>
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-lg transition-all active:scale-[0.98] shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold rounded-lg transition-all active:scale-[0.98]"
+            style={{ background: "#10B981", color: "#0F0F10" }}
           >
-            <Plus size={14} />
+            <Plus size={13} />
             Ajouter un créateur
           </button>
         </div>
       </div>
 
       {/* KPIs */}
-      {!loading && (
-        <KPISection creators={creators} insights={insights} />
-      )}
+      {!loading && <KPISection creators={creators} insights={insights} />}
 
-      {/* Tabs */}
-      <div className="flex items-center gap-0.5 mb-5 border-b border-zinc-200">
+      {/* Tabs — style underline */}
+      <div className="flex items-center gap-0.5 mb-6" style={{ borderBottom: "1px solid #2A2A32" }}>
         {TABS.map((tab) => {
           const count  = tab.value === null ? tabCounts.all : tabCounts[tab.value];
           const active = activeTab === tab.value;
@@ -575,19 +529,19 @@ export default function InspirationsPage() {
               className={cn(
                 "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px",
                 active
-                  ? "text-brand-600 border-brand-500"
-                  : "text-zinc-400 border-transparent hover:text-zinc-700 hover:border-zinc-300"
+                  ? "text-[#F0F0F5] border-[#10B981]"
+                  : "text-[#55555F] border-transparent hover:text-[#8B8B9E]"
               )}
             >
               {tab.label}
               {count > 0 && (
                 <span
-                  className={cn(
-                    "text-[11px] font-semibold px-1.5 py-0.5 rounded-full",
+                  className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style={
                     active
-                      ? "bg-brand-100 text-brand-600"
-                      : "bg-zinc-100 text-zinc-400"
-                  )}
+                      ? { background: "#064E3B", color: "#10B981" }
+                      : { background: "#1A1A1F", color: "#55555F" }
+                  }
                 >
                   {count}
                 </span>

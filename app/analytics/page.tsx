@@ -31,20 +31,20 @@ function calcScore(raw: number, maxRaw: number): number {
   return Math.round((raw / maxRaw) * 100);
 }
 
-function scoreLabel(score: number): { text: string; classes: string } {
-  if (score >= 75) return { text: "🔥 Viral", classes: "bg-red-50 text-red-600 border-red-200" };
-  if (score >= 50) return { text: "⚡ Fort", classes: "bg-orange-50 text-orange-600 border-orange-200" };
-  if (score >= 25) return { text: "👍 Correct", classes: "bg-emerald-50 text-emerald-600 border-emerald-200" };
-  return { text: "📉 Faible", classes: "bg-zinc-100 text-zinc-400 border-zinc-200" };
+function scoreLabel(score: number): { text: string; bg: string; color: string } {
+  if (score >= 75) return { text: "🔥 Viral",   bg: "#450A0A", color: "#EF4444" };
+  if (score >= 50) return { text: "⚡ Fort",    bg: "#451A03", color: "#F59E0B" };
+  if (score >= 25) return { text: "👍 Correct", bg: "#064E3B", color: "#10B981" };
+  return                   { text: "📉 Faible",  bg: "#1A1A1F", color: "#8B8B9E" };
 }
 
-// ─── Heatmap (SVG natif, style GitHub) ────────────────────────────────────────
+// ─── Heatmap ──────────────────────────────────────────────────────────────────
 
 function Heatmap({ posts }: { posts: MyPost[] }) {
   const CELL = 11;
-  const GAP = 2;
+  const GAP  = 2;
   const WEEKS = 52;
-  const DAYS = 7;
+  const DAYS  = 7;
 
   const today = new Date();
   const start = new Date(today);
@@ -78,38 +78,53 @@ function Heatmap({ posts }: { posts: MyPost[] }) {
 
   const [tooltip, setTooltip] = useState<{ x: number; y: number; date: string; info: typeof postMap[string] | null } | null>(null);
 
+  function cellFill(info: typeof postMap[string] | null): string {
+    if (!info) return "#1A1A1F";
+    if (info.score >= 75) return "#34D399";
+    if (info.score >= 50) return "#10B981";
+    if (info.score >= 25) return "#059669";
+    return "#064E3B";
+  }
+
   return (
     <div className="relative overflow-x-auto">
       <svg width={WEEKS * (CELL + GAP)} height={DAYS * (CELL + GAP) + 20} className="block">
-        {cells.map((c) => {
-          let fill = "#e5e7eb";
-          if (c.info) fill = c.info.score >= 75 ? "#16a34a" : c.info.score >= 25 ? "#86efac" : "#d1fae5";
-          return (
-            <rect
-              key={c.date}
-              x={c.x * (CELL + GAP)} y={c.y * (CELL + GAP) + 16}
-              width={CELL} height={CELL} rx={2} fill={fill}
-              className="cursor-pointer"
-              onMouseEnter={(e) => setTooltip({ ...c, x: e.clientX, y: e.clientY })}
-              onMouseLeave={() => setTooltip(null)}
-            />
-          );
-        })}
+        {cells.map((c) => (
+          <rect
+            key={c.date}
+            x={c.x * (CELL + GAP)} y={c.y * (CELL + GAP) + 16}
+            width={CELL} height={CELL} rx={2}
+            fill={cellFill(c.info)}
+            className="cursor-pointer"
+            onMouseEnter={(e) => setTooltip({ ...c, x: e.clientX, y: e.clientY })}
+            onMouseLeave={() => setTooltip(null)}
+          />
+        ))}
       </svg>
       {tooltip && (
-        <div className="fixed z-50 bg-zinc-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg max-w-[220px] pointer-events-none" style={{ left: tooltip.x + 12, top: tooltip.y - 40 }}>
+        <div
+          className="fixed z-50 text-xs rounded-lg px-3 py-2 max-w-[220px] pointer-events-none"
+          style={{
+            left: tooltip.x + 12,
+            top: tooltip.y - 40,
+            background: "#1A1A1F",
+            border: "1px solid #2A2A32",
+            color: "#F0F0F5",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+          }}
+        >
           <div className="font-medium">{tooltip.date}</div>
           {tooltip.info ? (
             <>
-              <div>Score {tooltip.info.score}/100 • {tooltip.info.likes} likes • {tooltip.info.comments} comments</div>
-              <div className="mt-1 text-zinc-300 leading-snug">{tooltip.info.content}…</div>
+              <div className="text-[#8B8B9E]">Score {tooltip.info.score}/100 · {tooltip.info.likes} likes · {tooltip.info.comments} comments</div>
+              <div className="mt-1 text-[#55555F] leading-snug">{tooltip.info.content}…</div>
             </>
-          ) : <div className="text-zinc-400">Pas de post ce jour-là</div>}
+          ) : <div className="text-[#55555F]">Pas de post ce jour-là</div>}
         </div>
       )}
-      <div className="flex items-center gap-2 mt-2 text-xs text-zinc-400">
+      <div className="flex items-center gap-2 mt-2 text-xs text-[#55555F]">
         <span>Faible</span>
-        {["#e5e7eb", "#d1fae5", "#86efac", "#16a34a"].map((c) => (
+        {["#1A1A1F", "#064E3B", "#10B981", "#34D399"].map((c) => (
           <span key={c} className="w-3 h-3 rounded-sm inline-block" style={{ background: c }} />
         ))}
         <span>Viral</span>
@@ -142,16 +157,24 @@ function AddPostModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
-          <h2 className="font-semibold text-zinc-900">Ajouter un post</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600"><X size={18} /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="w-full max-w-lg" style={{ background: "#1A1A1F", border: "1px solid #2A2A32", borderRadius: "10px" }}>
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #2A2A32" }}>
+          <h2 className="font-semibold text-[#F0F0F5]">Ajouter un post</h2>
+          <button onClick={onClose} className="text-[#55555F] hover:text-[#F0F0F5]"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Contenu *</label>
-            <textarea required rows={5} className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-300" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+            <label className="block text-sm font-medium text-[#8B8B9E] mb-1">Contenu *</label>
+            <textarea
+              required rows={5}
+              className="w-full rounded-lg px-3 py-2 text-sm resize-none focus:outline-none transition-all"
+              style={{ background: "#111115", border: "1px solid #2A2A32", color: "#F0F0F5" }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "#10B981"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "#2A2A32"; }}
+              value={form.content}
+              onChange={(e) => setForm({ ...form, content: e.target.value })}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             {[
@@ -161,18 +184,40 @@ function AddPostModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
               { label: "Commentaires", key: "comments", type: "number" },
             ].map(({ label, key, type }) => (
               <div key={key}>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">{label}</label>
-                <input type={type} min={type === "number" ? "0" : undefined} className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300" value={form[key as keyof typeof form]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
+                <label className="block text-sm font-medium text-[#8B8B9E] mb-1">{label}</label>
+                <input
+                  type={type}
+                  min={type === "number" ? "0" : undefined}
+                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none transition-all"
+                  style={{ background: "#111115", border: "1px solid #2A2A32", color: "#F0F0F5" }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "#10B981"; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = "#2A2A32"; }}
+                  value={form[key as keyof typeof form]}
+                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                />
               </div>
             ))}
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">URL du post (optionnel)</label>
-            <input type="url" className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300" value={form.post_url} onChange={(e) => setForm({ ...form, post_url: e.target.value })} />
+            <label className="block text-sm font-medium text-[#8B8B9E] mb-1">URL du post (optionnel)</label>
+            <input
+              type="url"
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none transition-all"
+              style={{ background: "#111115", border: "1px solid #2A2A32", color: "#F0F0F5" }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "#10B981"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "#2A2A32"; }}
+              value={form.post_url}
+              onChange={(e) => setForm({ ...form, post_url: e.target.value })}
+            />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900">Annuler</button>
-            <button type="submit" disabled={saving} className="px-5 py-2 bg-brand-500 text-white text-sm font-medium rounded-lg hover:bg-brand-600 disabled:opacity-50">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-[#8B8B9E] hover:text-[#F0F0F5]">Annuler</button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2 text-sm font-semibold rounded-lg disabled:opacity-50"
+              style={{ background: "#10B981", color: "#0F0F10" }}
+            >
               {saving ? "Enregistrement…" : "Ajouter"}
             </button>
           </div>
@@ -185,7 +230,7 @@ function AddPostModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
 // ─── Modal lier compte LinkedIn ───────────────────────────────────────────────
 
 function LinkedInUrlModal({ onClose, onSaved }: { onClose: () => void; onSaved: (url: string) => void }) {
-  const [url, setUrl] = useState("");
+  const [url, setUrl]     = useState("");
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -203,15 +248,30 @@ function LinkedInUrlModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-        <h2 className="font-semibold text-zinc-900 mb-1">Lier mon compte LinkedIn</h2>
-        <p className="text-sm text-zinc-400 mb-4">Renseigne l'URL de ton profil pour importer tes posts automatiquement.</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="w-full max-w-md p-6" style={{ background: "#1A1A1F", border: "1px solid #2A2A32", borderRadius: "10px" }}>
+        <h2 className="font-semibold text-[#F0F0F5] mb-1">Lier mon compte LinkedIn</h2>
+        <p className="text-sm text-[#8B8B9E] mb-4">Renseigne l'URL de ton profil pour importer tes posts automatiquement.</p>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="url" required placeholder="https://www.linkedin.com/in/ton-profil" className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <input
+            type="url"
+            required
+            placeholder="https://www.linkedin.com/in/ton-profil"
+            className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none transition-all"
+            style={{ background: "#111115", border: "1px solid #2A2A32", color: "#F0F0F5" }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "#10B981"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "#2A2A32"; }}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-600">Annuler</button>
-            <button type="submit" disabled={saving} className="px-5 py-2 bg-brand-500 text-white text-sm font-medium rounded-lg hover:bg-brand-600 disabled:opacity-50">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-[#8B8B9E]">Annuler</button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2 text-sm font-semibold rounded-lg disabled:opacity-50"
+              style={{ background: "#10B981", color: "#0F0F10" }}
+            >
               {saving ? "Enregistrement…" : "Lier le compte"}
             </button>
           </div>
@@ -224,7 +284,7 @@ function LinkedInUrlModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
 // ─── Modal délier compte ──────────────────────────────────────────────────────
 
 function UnlinkModal({ linkedinUrl, onClose, onUnlinked }: { linkedinUrl: string; onClose: () => void; onUnlinked: () => void }) {
-  const [input, setInput] = useState("");
+  const [input, setInput]   = useState("");
   const [loading, setLoading] = useState(false);
   const slug = linkedinUrl.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//, "").replace(/\/$/, "");
 
@@ -238,25 +298,29 @@ function UnlinkModal({ linkedinUrl, onClose, onUnlinked }: { linkedinUrl: string
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-        <h2 className="font-semibold text-zinc-900 mb-2">Délier le compte</h2>
-        <p className="text-sm text-zinc-500 mb-4">Es-tu sûr ? Cette action supprime tous tes posts importés.</p>
-        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4 text-sm text-red-700">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="w-full max-w-md p-6" style={{ background: "#1A1A1F", border: "1px solid #2A2A32", borderRadius: "10px" }}>
+        <h2 className="font-semibold text-[#F0F0F5] mb-2">Délier le compte</h2>
+        <p className="text-sm text-[#8B8B9E] mb-4">Es-tu sûr ? Cette action supprime tous tes posts importés.</p>
+        <div className="rounded-lg px-3 py-2 mb-4 text-sm" style={{ background: "#450A0A", border: "1px solid #EF4444", color: "#EF4444" }}>
           Compte à délier : <strong>linkedin.com/in/{slug}</strong>
         </div>
-        <p className="text-sm text-zinc-600 mb-2">Tape <strong>CONFIRMER</strong> pour continuer :</p>
+        <p className="text-sm text-[#8B8B9E] mb-2">Tape <strong className="text-[#F0F0F5]">CONFIRMER</strong> pour continuer :</p>
         <input
           type="text" value={input} onChange={(e) => setInput(e.target.value)}
           placeholder="CONFIRMER"
-          className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-red-300"
+          className="w-full rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none transition-all"
+          style={{ background: "#111115", border: "1px solid #2A2A32", color: "#F0F0F5" }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = "#EF4444"; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = "#2A2A32"; }}
         />
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-600">Annuler</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[#8B8B9E]">Annuler</button>
           <button
             onClick={handleConfirm}
             disabled={input !== "CONFIRMER" || loading}
-            className="px-5 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 disabled:opacity-50"
+            className="px-5 py-2 text-sm font-semibold rounded-lg disabled:opacity-50"
+            style={{ background: "#450A0A", color: "#EF4444", border: "1px solid #EF4444" }}
           >
             {loading ? "Déliaison…" : "Délier et supprimer"}
           </button>
@@ -269,26 +333,26 @@ function UnlinkModal({ linkedinUrl, onClose, onUnlinked }: { linkedinUrl: string
 // ─── Page principale ───────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
-  const [posts, setPosts] = useState<MyPost[]>([]);
+  const [posts, setPosts]           = useState<MyPost[]>([]);
   const [linkedinUrl, setLinkedinUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showLink, setShowLink] = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const [importing, setImporting]   = useState(false);
+  const [analyzing, setAnalyzing]   = useState(false);
+  const [analysis, setAnalysis]     = useState<AnalysisResult | null>(null);
+  const [showAdd, setShowAdd]       = useState(false);
+  const [showLink, setShowLink]     = useState(false);
   const [showUnlink, setShowUnlink] = useState(false);
-  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [importMsg, setImportMsg]   = useState<string | null>(null);
 
   // ── Coach IA state ──
-  const [coachReport, setCoachReport] = useState<CoachReport | null>(null);
+  const [coachReport, setCoachReport]         = useState<CoachReport | null>(null);
   const [coachPredictions, setCoachPredictions] = useState<CoachPredictionDB[]>([]);
-  const [coachKnowledge, setCoachKnowledge] = useState<CoachKnowledge[]>([]);
-  const [coachHistory, setCoachHistory] = useState<CoachReport[]>([]);
+  const [coachKnowledge, setCoachKnowledge]   = useState<CoachKnowledge[]>([]);
+  const [coachHistory, setCoachHistory]       = useState<CoachReport[]>([]);
   const [coachGenerating, setCoachGenerating] = useState(false);
-  const [showLearnings, setShowLearnings] = useState(false);
+  const [showLearnings, setShowLearnings]     = useState(false);
   const [showCoachHistory, setShowCoachHistory] = useState(false);
-  const [predFeedback, setPredFeedback] = useState<Record<string, "worked" | "didnt_work">>({});
+  const [predFeedback, setPredFeedback]       = useState<Record<string, "worked" | "didnt_work">>({});
 
   const loadCoachData = useCallback(async () => {
     const [reportRes, knowledgeRes] = await Promise.all([
@@ -318,6 +382,9 @@ export default function AnalyticsPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { loadCoachData(); }, [loadCoachData]);
+
+  // suppress unused warning
+  void coachKnowledge;
 
   async function handleImport() {
     setImportMsg(null);
@@ -375,12 +442,12 @@ export default function AnalyticsPage() {
     ? Math.round(posts.reduce((s, p) => s + (postScores.get(p.id) ?? 0), 0) / posts.length)
     : 0;
 
-  const bestPost = posts.reduce<MyPost | null>((best, p) => (!best || p.likes > best.likes ? p : best), null);
+  const bestPost      = posts.reduce<MyPost | null>((best, p) => (!best || p.likes > best.likes ? p : best), null);
   const bestPostScore = bestPost ? (postScores.get(bestPost.id) ?? 0) : 0;
 
   const thisMonthStart = new Date();
   thisMonthStart.setDate(1);
-  const monthLikes = posts
+  const monthLikes      = posts
     .filter((p) => p.published_at && p.published_at >= thisMonthStart.toISOString().slice(0, 10))
     .reduce((s, p) => s + p.likes, 0);
   const estimatedReach = monthLikes * 35;
@@ -400,7 +467,6 @@ export default function AnalyticsPage() {
       ? `🔥 ${streak} jours de streak !`
       : `📅 ${streak} jour${streak > 1 ? "s" : ""} consécutif${streak > 1 ? "s" : ""}`;
 
-  // ── Chart data ──
   const lineData = posts
     .filter((p) => p.published_at)
     .sort((a, b) => (a.published_at! > b.published_at! ? 1 : -1))
@@ -432,35 +498,47 @@ export default function AnalyticsPage() {
     : null;
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-zinc-400 text-sm">Chargement…</div>;
+    return (
+      <div className="flex-1 flex items-center justify-center text-[#55555F] text-sm" style={{ background: "#0F0F10" }}>
+        Chargement…
+      </div>
+    );
   }
 
   // ── État non lié ───────────────────────────────────────────────────────────
   if (!linkedinUrl) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-zinc-50 p-8">
-        <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-10 text-center max-w-md w-full">
-          <div className="w-14 h-14 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Link2 size={24} className="text-zinc-400" />
+      <div className="flex-1 flex flex-col items-center justify-center p-8" style={{ background: "#0F0F10" }}>
+        <div
+          className="p-10 text-center max-w-md w-full"
+          style={{ background: "#1A1A1F", border: "1px solid #2A2A32", borderRadius: "10px" }}
+        >
+          <div
+            className="w-12 h-12 rounded-[10px] flex items-center justify-center mx-auto mb-4"
+            style={{ background: "#111115", border: "1px solid #2A2A32" }}
+          >
+            <Link2 size={20} className="text-[#55555F]" />
           </div>
-          <h2 className="text-lg font-semibold text-zinc-900 mb-2">Aucun compte lié</h2>
-          <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+          <h2 className="text-base font-semibold text-[#F0F0F5] mb-2">Aucun compte lié</h2>
+          <p className="text-sm text-[#8B8B9E] mb-6 leading-relaxed">
             Lie ton profil LinkedIn pour importer tes posts et suivre tes performances automatiquement.
           </p>
           <button
             onClick={() => setShowLink(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-brand-500 text-white text-sm font-medium rounded-lg hover:bg-brand-600 mx-auto"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg mx-auto transition-all active:scale-[0.98]"
+            style={{ background: "#10B981", color: "#0F0F10" }}
           >
-            <Link2 size={15} />
+            <Link2 size={14} />
             Lier mon compte LinkedIn
           </button>
-          <div className="mt-6 pt-6 border-t border-zinc-100">
-            <p className="text-xs text-zinc-400 mb-3">Ou ajoute des posts manuellement</p>
+          <div className="mt-6 pt-6" style={{ borderTop: "1px solid #2A2A32" }}>
+            <p className="text-xs text-[#55555F] mb-3">Ou ajoute des posts manuellement</p>
             <button
               onClick={() => setShowAdd(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 text-sm font-medium text-zinc-600 rounded-lg hover:bg-zinc-50 mx-auto"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#8B8B9E] hover:text-[#F0F0F5] rounded-lg mx-auto transition-all"
+              style={{ border: "1px solid #2A2A32" }}
             >
-              <Plus size={14} />
+              <Plus size={13} />
               Ajouter un post
             </button>
           </div>
@@ -479,54 +557,75 @@ export default function AnalyticsPage() {
 
   // ── État lié ───────────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 overflow-y-auto bg-zinc-50 p-8">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="flex-1 overflow-y-auto p-8" style={{ background: "#0F0F10" }}>
+      <div className="max-w-5xl mx-auto space-y-6">
 
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900">Mon compte</h1>
-            <p className="text-zinc-500 text-sm mt-1">Suivi de tes performances LinkedIn personnelles</p>
+            <h1
+              className="text-2xl font-semibold text-[#F0F0F5]"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              Mon compte
+            </h1>
+            <p className="text-[#55555F] text-sm mt-1">Suivi de tes performances LinkedIn personnelles</p>
           </div>
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-500 text-white text-sm font-medium rounded-lg hover:bg-brand-600"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all active:scale-[0.98]"
+            style={{ background: "#10B981", color: "#0F0F10" }}
           >
-            <Plus size={15} />
+            <Plus size={14} />
             Ajouter un post
           </button>
         </div>
 
         {/* Bannière compte lié */}
-        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-          <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center shrink-0">
-            <Link2 size={15} className="text-emerald-600" />
+        <div
+          className="flex items-center gap-3 rounded-[10px] px-4 py-3"
+          style={{ background: "#0D2B22", border: "1px solid #064E3B" }}
+        >
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: "#064E3B" }}
+          >
+            <Link2 size={14} className="text-[#10B981]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-emerald-800">Compte lié</p>
-            <p className="text-xs text-emerald-600 truncate">linkedin.com/in/{linkedinSlug}</p>
+            <p className="text-sm font-medium text-[#10B981]">Compte lié</p>
+            <p className="text-xs text-[#059669] truncate">linkedin.com/in/{linkedinSlug}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleImport}
               disabled={importing}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+              style={{ background: "#064E3B", color: "#10B981", border: "1px solid #059669" }}
             >
-              <RefreshCw size={12} className={importing ? "animate-spin" : ""} />
+              <RefreshCw size={11} className={importing ? "animate-spin" : ""} />
               {importing ? "Import…" : "↻ Mettre à jour"}
             </button>
             <button
               onClick={() => setShowUnlink(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-red-50 text-zinc-500 hover:text-red-600 border border-zinc-200 hover:border-red-200 text-xs font-medium rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors text-[#8B8B9E] hover:text-[#EF4444]"
+              style={{ border: "1px solid #2A2A32" }}
             >
-              <Link2Off size={12} />
+              <Link2Off size={11} />
               Délier
             </button>
           </div>
         </div>
 
         {importMsg && (
-          <div className={`text-sm rounded-lg px-4 py-3 ${importMsg.includes("Erreur") ? "bg-red-50 border border-red-200 text-red-700" : "bg-emerald-50 border border-emerald-200 text-emerald-700"}`}>
+          <div
+            className="text-sm rounded-lg px-4 py-3"
+            style={
+              importMsg.includes("Erreur")
+                ? { background: "#450A0A", border: "1px solid #EF4444", color: "#EF4444" }
+                : { background: "#064E3B", border: "1px solid #10B981", color: "#10B981" }
+            }
+          >
             {importMsg}
           </div>
         )}
@@ -534,36 +633,21 @@ export default function AnalyticsPage() {
         {/* KPI cards */}
         <div className="grid grid-cols-5 gap-4">
           {[
-            {
-              label: "Score moyen",
-              value: `${avgScore}/100`,
-              sub: "basé sur likes × 2 + comments × 5",
-            },
-            {
-              label: "Meilleur post",
-              value: bestPost ? `Score ${bestPostScore} ${scoreLabel(bestPostScore).text.split(" ")[0]}` : "—",
-              sub: bestPost ? `${bestPost.likes} likes · ${bestPost.comments} commentaires` : "Aucun post",
-            },
-            {
-              label: "Posts suivis",
-              value: posts.length.toString(),
-              sub: "dans ta bibliothèque",
-            },
-            {
-              label: "Streak actuel",
-              value: streakDisplay,
-              sub: streak > 0 ? "jours consécutifs avec un post" : "Poste aujourd'hui pour démarrer",
-            },
-            {
-              label: "Reach estimé ce mois",
-              value: estimatedReach >= 1000 ? `${Math.round(estimatedReach / 1000)}k` : estimatedReach.toString(),
-              sub: "estimation basée sur tes likes",
-            },
+            { label: "Score moyen", value: `${avgScore}/100`, sub: "likes×2 + comments×5 (normalisé)" },
+            { label: "Meilleur post", value: bestPost ? `Score ${bestPostScore}` : "—", sub: bestPost ? `${bestPost.likes} likes · ${bestPost.comments} commentaires` : "Aucun post" },
+            { label: "Posts suivis", value: posts.length.toString(), sub: "dans ta bibliothèque" },
+            { label: "Streak actuel", value: streakDisplay, sub: streak > 0 ? "jours consécutifs" : "Poste aujourd'hui !" },
+            { label: "Reach ce mois", value: estimatedReach >= 1000 ? `${Math.round(estimatedReach / 1000)}k` : estimatedReach.toString(), sub: "estimation sur tes likes" },
           ].map(({ label, value, sub }) => (
-            <div key={label} className="bg-white rounded-xl border border-zinc-100 p-5 shadow-sm">
-              <div className="text-xs text-zinc-400 font-medium uppercase tracking-wide mb-2">{label}</div>
-              <div className="text-2xl font-bold text-zinc-900 leading-tight">{value}</div>
-              <div className="text-xs text-zinc-400 mt-1 leading-snug">{sub}</div>
+            <div key={label} className="card">
+              <p className="label-section mb-2">{label}</p>
+              <div
+                className="text-[26px] font-bold text-[#F0F0F5] leading-tight mb-1"
+                style={{ fontFamily: "var(--font-geist-mono), monospace" }}
+              >
+                {value}
+              </div>
+              <div className="text-[11px] text-[#55555F] leading-snug">{sub}</div>
             </div>
           ))}
         </div>
@@ -571,16 +655,17 @@ export default function AnalyticsPage() {
         {posts.length > 0 && (
           <>
             {/* Line chart */}
-            <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
-              <h2 className="font-semibold text-zinc-900 mb-1">Score de performance par post</h2>
-              <p className="text-xs text-zinc-400 mb-4">Score 0-100 · likes × 2 + comments × 5 + shares × 3, normalisé sur ton meilleur post</p>
+            <div className="card">
+              <h2 className="font-semibold text-[#F0F0F5] mb-1">Score de performance par post</h2>
+              <p className="text-xs text-[#55555F] mb-4">Score 0-100 · likes × 2 + comments × 5 + shares × 3, normalisé sur ton meilleur post</p>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={lineData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E1E26" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#55555F" }} tickLine={false} axisLine={false} />
                   <YAxis
-                    tick={{ fontSize: 11 }} tickLine={false} axisLine={false}
-                    domain={[0, 100]} label={{ value: "Score", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 10, fill: "#a1a1aa" } }}
+                    tick={{ fontSize: 11, fill: "#55555F" }} tickLine={false} axisLine={false}
+                    domain={[0, 100]}
+                    label={{ value: "Score", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 10, fill: "#55555F" } }}
                   />
                   <Tooltip
                     formatter={(v, _n, item) => {
@@ -588,26 +673,26 @@ export default function AnalyticsPage() {
                       return [`Score ${v}/100 · ${d?.likes ?? 0} likes · ${d?.comments ?? 0} comments`, ""];
                     }}
                     labelFormatter={(l) => `Le ${l}`}
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #2A2A32", background: "#1A1A1F", color: "#F0F0F5" }}
                   />
-                  <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: "#10b981" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2} dot={{ r: 3, fill: "#10B981" }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
             {/* Bar chart */}
             {barData.length > 0 && (
-              <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
-                <h2 className="font-semibold text-zinc-900 mb-1">Score moyen par format</h2>
-                <p className="text-xs text-zinc-400 mb-5">Score 0-100 — plus c'est haut, plus ce format performe pour toi</p>
+              <div className="card">
+                <h2 className="font-semibold text-[#F0F0F5] mb-1">Score moyen par format</h2>
+                <p className="text-xs text-[#55555F] mb-5">Score 0-100 — plus c'est haut, plus ce format performe pour toi</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={barData} barSize={36}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="format" tick={{ fontSize: 12 }} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} domain={[0, 100]} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1E1E26" />
+                    <XAxis dataKey="format" tick={{ fontSize: 12, fill: "#55555F" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "#55555F" }} tickLine={false} axisLine={false} domain={[0, 100]} />
                     <Tooltip
                       formatter={(v) => [`${v}/100`, "Score moyen"]}
-                      contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
+                      contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #2A2A32", background: "#1A1A1F", color: "#F0F0F5" }}
                     />
                     <Bar dataKey="avg" radius={[6, 6, 0, 0]}>
                       {barData.map((entry) => (
@@ -620,68 +705,81 @@ export default function AnalyticsPage() {
             )}
 
             {/* Heatmap */}
-            <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
-              <h2 className="font-semibold text-zinc-900 mb-5">Heatmap d'activité</h2>
+            <div className="card">
+              <h2 className="font-semibold text-[#F0F0F5] mb-5">Heatmap d'activité</h2>
               <Heatmap posts={posts} />
             </div>
           </>
         )}
 
         {/* Coach IA */}
-        <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
+        <div className="card">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="font-semibold text-zinc-900">🧠 Coach IA</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">Analyse stratégique personnalisée — algorithme LinkedIn 2025/2026</p>
+              <h2 className="font-semibold text-[#F0F0F5]">🧠 Coach IA</h2>
+              <p className="text-xs text-[#55555F] mt-0.5">Analyse stratégique personnalisée — algorithme LinkedIn 2025/2026</p>
             </div>
             <button
               onClick={handleGenerateCoach}
               disabled={coachGenerating || posts.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-500 text-white text-sm font-medium rounded-lg hover:bg-brand-600 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all active:scale-[0.98] disabled:opacity-50"
+              style={{ background: "#10B981", color: "#0F0F10" }}
             >
-              <Brain size={15} className={coachGenerating ? "animate-pulse" : ""} />
-              {coachGenerating ? "Le coach analyse vos données…" : "Générer l'analyse"}
+              <Brain size={14} className={coachGenerating ? "animate-pulse" : ""} />
+              {coachGenerating ? "Analyse en cours…" : "Générer l'analyse"}
             </button>
           </div>
 
           {coachGenerating && (
-            <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
-              <Brain size={32} className="animate-pulse text-brand-400 mb-3" />
+            <div className="flex flex-col items-center justify-center py-12 text-[#55555F]">
+              <Brain size={32} className="animate-pulse text-[#10B981] mb-3" />
               <p className="text-sm">Le coach analyse vos données…</p>
-              <p className="text-xs text-zinc-300 mt-1">Croisement algo LinkedIn × vos patterns personnels</p>
+              <p className="text-xs text-[#55555F] mt-1">Croisement algo LinkedIn × vos patterns personnels</p>
             </div>
           )}
 
           {coachReport && !coachGenerating && (
-            <div className="space-y-6">
-
+            <div className="space-y-5">
               {/* Analyse de la semaine */}
-              <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4">
-                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Analyse de la semaine</p>
-                <p className="text-sm text-zinc-700 leading-relaxed">{coachReport.analysis}</p>
+              <div
+                className="rounded-lg p-4"
+                style={{ background: "#0D1F19", borderLeft: "3px solid #10B981" }}
+              >
+                <p className="label-section text-[#10B981] mb-2">Analyse de la semaine</p>
+                <p className="text-sm text-[#F0F0F5] leading-relaxed">{coachReport.analysis}</p>
               </div>
 
               {/* Recommandations */}
               {coachReport.recommendations?.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Mes recommandations</p>
+                  <p className="label-section mb-3">Mes recommandations</p>
                   <div className="grid gap-3">
                     {coachReport.recommendations.map((rec, i) => (
-                      <div key={i} className="border border-zinc-100 rounded-xl p-4 bg-white shadow-sm">
+                      <div
+                        key={i}
+                        className="rounded-lg p-4"
+                        style={{ background: "#111115", border: "1px solid #2A2A32" }}
+                      >
                         <div className="flex items-start gap-3">
-                          <span className="shrink-0 w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
-                          <div className="flex-1 space-y-2">
-                            <p className="font-semibold text-zinc-900 text-sm">{rec.titre}</p>
-                            <p className="text-sm text-zinc-700">{rec.conseil}</p>
-                            <p className="text-xs text-zinc-400">{rec.why}</p>
-                            <div className="flex items-start gap-2 mt-2">
-                              <span className="shrink-0 text-emerald-500 mt-0.5">
-                                <CheckCircle size={13} />
-                              </span>
-                              <p className="text-xs text-emerald-700 font-medium">{rec.action}</p>
+                          <span
+                            className="shrink-0 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center mt-0.5"
+                            style={{ background: "#0D2B22", color: "#10B981" }}
+                          >
+                            {i + 1}
+                          </span>
+                          <div className="flex-1 space-y-1.5">
+                            <p className="font-semibold text-[#F0F0F5] text-sm">{rec.titre}</p>
+                            <p className="text-sm text-[#8B8B9E]">{rec.conseil}</p>
+                            <p className="text-xs text-[#55555F]">{rec.why}</p>
+                            <div className="flex items-start gap-2 mt-1.5">
+                              <CheckCircle size={12} className="text-[#10B981] shrink-0 mt-0.5" />
+                              <p className="text-xs text-[#10B981] font-medium">{rec.action}</p>
                             </div>
                             {rec.expected_impact && (
-                              <span className="inline-block text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">
+                              <span
+                                className="inline-block text-xs rounded-full px-2 py-0.5"
+                                style={{ background: "#451A03", color: "#F59E0B" }}
+                              >
                                 {rec.expected_impact}
                               </span>
                             )}
@@ -695,31 +793,36 @@ export default function AnalyticsPage() {
 
               {/* Learnings (collapsible) */}
               {coachReport.learnings?.length > 0 && (
-                <div className="border border-zinc-100 rounded-xl overflow-hidden">
+                <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #2A2A32" }}>
                   <button
                     onClick={() => setShowLearnings((v) => !v)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-zinc-50 hover:bg-zinc-100 transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-3 transition-colors"
+                    style={{ background: "#111115" }}
                   >
-                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">
+                    <p className="label-section">
                       Ce que j&apos;ai appris ({coachReport.learnings.length})
                     </p>
-                    {showLearnings ? <ChevronUp size={14} className="text-zinc-400" /> : <ChevronDown size={14} className="text-zinc-400" />}
+                    {showLearnings ? <ChevronUp size={13} className="text-[#55555F]" /> : <ChevronDown size={13} className="text-[#55555F]" />}
                   </button>
                   {showLearnings && (
-                    <div className="divide-y divide-zinc-50">
+                    <div style={{ borderTop: "1px solid #2A2A32" }}>
                       {coachReport.learnings.map((l, i) => (
-                        <div key={i} className="px-4 py-3">
-                          <p className="text-sm text-zinc-800 mb-1">{l.pattern}</p>
+                        <div
+                          key={i}
+                          className="px-4 py-3"
+                          style={{ borderBottom: "1px solid #1E1E26" }}
+                        >
+                          <p className="text-sm text-[#F0F0F5] mb-1">{l.pattern}</p>
                           <div className="flex items-center gap-2 mb-1">
-                            <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "#222228" }}>
                               <div
-                                className="h-full rounded-full bg-brand-400"
-                                style={{ width: `${Math.round((l.confidence ?? 0) * 100)}%` }}
+                                className="h-full rounded-full"
+                                style={{ width: `${Math.round((l.confidence ?? 0) * 100)}%`, background: "#10B981" }}
                               />
                             </div>
-                            <span className="text-xs text-zinc-400 shrink-0">{Math.round((l.confidence ?? 0) * 100)}% confiance</span>
+                            <span className="text-xs text-[#55555F] shrink-0">{Math.round((l.confidence ?? 0) * 100)}%</span>
                           </div>
-                          <p className="text-xs text-zinc-400">{l.based_on}</p>
+                          <p className="text-xs text-[#55555F]">{l.based_on}</p>
                         </div>
                       ))}
                     </div>
@@ -727,42 +830,58 @@ export default function AnalyticsPage() {
                 </div>
               )}
 
-              {/* Prédictions de la semaine */}
+              {/* Prédictions */}
               {coachPredictions.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Mes prédictions pour la semaine</p>
+                  <p className="label-section mb-3">Mes prédictions pour la semaine</p>
                   <div className="grid gap-3">
                     {coachPredictions.map((pred) => {
                       const localFeedback = predFeedback[pred.id];
                       const finalFeedback = localFeedback ?? (pred.was_correct === true ? "worked" : pred.was_correct === false ? "didnt_work" : undefined);
                       return (
-                        <div key={pred.id} className="flex items-start gap-3 border border-zinc-100 rounded-xl p-4 bg-white">
-                          <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 capitalize mt-0.5">
+                        <div
+                          key={pred.id}
+                          className="flex items-start gap-3 rounded-lg p-4"
+                          style={{ background: "#111115", border: "1px solid #2A2A32" }}
+                        >
+                          <span
+                            className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium capitalize mt-0.5"
+                            style={{ background: "#2D1B69", color: "#A78BFA" }}
+                          >
                             {pred.prediction_type}
                           </span>
                           <div className="flex-1">
-                            <p className="text-sm text-zinc-800">{pred.prediction}</p>
+                            <p className="text-sm text-[#F0F0F5]">{pred.prediction}</p>
                             {pred.expected_improvement && (
-                              <p className="text-xs text-zinc-400 mt-0.5">Amélioration attendue : +{pred.expected_improvement}%</p>
+                              <p className="text-xs text-[#55555F] mt-0.5">Amélioration attendue : +{pred.expected_improvement}%</p>
                             )}
                           </div>
                           {!finalFeedback ? (
                             <div className="flex gap-2 shrink-0">
                               <button
                                 onClick={() => handlePredictionFeedback(pred.id, "worked")}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+                                style={{ background: "#064E3B", color: "#10B981", border: "1px solid #10B981" }}
                               >
                                 <CheckCircle size={11} /> Ça a marché
                               </button>
                               <button
                                 onClick={() => handlePredictionFeedback(pred.id, "didnt_work")}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors"
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+                                style={{ background: "#450A0A", color: "#EF4444", border: "1px solid #EF4444" }}
                               >
                                 <XCircle size={11} /> Pas concluant
                               </button>
                             </div>
                           ) : (
-                            <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg border ${finalFeedback === "worked" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
+                            <span
+                              className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg"
+                              style={
+                                finalFeedback === "worked"
+                                  ? { background: "#064E3B", color: "#10B981" }
+                                  : { background: "#450A0A", color: "#EF4444" }
+                              }
+                            >
                               {finalFeedback === "worked" ? "✅ Concluant" : "❌ Pas concluant"}
                             </span>
                           )}
@@ -778,49 +897,53 @@ export default function AnalyticsPage() {
                 <div>
                   <button
                     onClick={() => setShowCoachHistory((v) => !v)}
-                    className="flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
+                    className="flex items-center gap-2 text-xs font-medium text-[#55555F] hover:text-[#8B8B9E] transition-colors"
                   >
-                    {showCoachHistory ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    {showCoachHistory ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                     Voir l&apos;historique ({coachHistory.length - 1} rapport{coachHistory.length > 2 ? "s" : ""} précédent{coachHistory.length > 2 ? "s" : ""})
                   </button>
                   {showCoachHistory && (
                     <div className="mt-3 space-y-2">
                       {coachHistory.slice(1).map((r) => (
-                        <div key={r.id} className="border border-zinc-100 rounded-xl p-4 bg-zinc-50">
+                        <div
+                          key={r.id}
+                          className="rounded-lg p-4"
+                          style={{ background: "#111115", border: "1px solid #2A2A32" }}
+                        >
                           <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-semibold text-zinc-500">Semaine du {r.week_start}</p>
-                            <span className="text-xs text-zinc-400">
+                            <p className="text-xs font-semibold text-[#8B8B9E]">Semaine du {r.week_start}</p>
+                            <span className="text-xs text-[#55555F]">
                               {(r.recommendations as unknown[])?.length ?? 0} recommandations
                             </span>
                           </div>
-                          <p className="text-sm text-zinc-600 leading-relaxed">{r.analysis}</p>
+                          <p className="text-sm text-[#8B8B9E] leading-relaxed">{r.analysis}</p>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               )}
-
             </div>
           )}
 
           {!coachReport && !coachGenerating && (
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-[#55555F]">
               Lance l&apos;analyse pour obtenir des recommandations stratégiques basées sur l&apos;algo LinkedIn 2025/2026 et tes données personnelles.
             </p>
           )}
         </div>
 
         {/* Analyse IA */}
-        <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
+        <div className="card">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="font-semibold text-zinc-900">Insights personnels IA</h2>
+            <h2 className="font-semibold text-[#F0F0F5]">Insights personnels IA</h2>
             <button
               onClick={handleAnalyze}
               disabled={analyzing || posts.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-500 text-white text-sm font-medium rounded-lg hover:bg-brand-600 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all active:scale-[0.98] disabled:opacity-50"
+              style={{ background: "#10B981", color: "#0F0F10" }}
             >
-              <Brain size={15} />
+              <Brain size={14} />
               {analyzing ? "Analyse en cours…" : "Analyser mes performances"}
             </button>
           </div>
@@ -828,16 +951,16 @@ export default function AnalyticsPage() {
           {analysis ? (
             <div className="grid grid-cols-2 gap-4">
               {/* Ce qui marche */}
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-                <h3 className="font-semibold text-emerald-800 mb-3 text-sm">💪 Ce qui marche</h3>
+              <div className="rounded-lg p-4" style={{ background: "#0D1F19", borderLeft: "3px solid #10B981" }}>
+                <h3 className="font-semibold text-[#10B981] mb-3 text-sm">💪 Ce qui marche</h3>
                 <div className="space-y-1.5 text-sm">
-                  <p className="text-emerald-700">Format : <strong className="capitalize">{analysis.best_format}</strong></p>
-                  <p className="text-emerald-700">Hook : <strong className="capitalize">{analysis.best_hook}</strong></p>
+                  <p className="text-[#8B8B9E]">Format : <strong className="capitalize text-[#F0F0F5]">{analysis.best_format}</strong></p>
+                  <p className="text-[#8B8B9E]">Hook : <strong className="capitalize text-[#F0F0F5]">{analysis.best_hook}</strong></p>
                 </div>
                 {analysis.insights.slice(0, Math.ceil(analysis.insights.length / 2)).length > 0 && (
                   <ul className="mt-3 space-y-1.5">
                     {analysis.insights.slice(0, Math.ceil(analysis.insights.length / 2)).map((ins, i) => (
-                      <li key={i} className="text-xs text-emerald-700 flex items-start gap-1.5">
+                      <li key={i} className="text-xs text-[#10B981] flex items-start gap-1.5">
                         <span className="shrink-0 mt-0.5">✓</span>{ins}
                       </li>
                     ))}
@@ -845,36 +968,38 @@ export default function AnalyticsPage() {
                 )}
               </div>
 
-              {/* Ce qui ne marche pas */}
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-                <h3 className="font-semibold text-amber-800 mb-3 text-sm">⚠️ Points d&apos;amélioration</h3>
+              {/* Points d'amélioration */}
+              <div className="rounded-lg p-4" style={{ background: "#1C1200", borderLeft: "3px solid #F59E0B" }}>
+                <h3 className="font-semibold text-[#F59E0B] mb-3 text-sm">⚠️ Points d&apos;amélioration</h3>
                 {analysis.insights.slice(Math.ceil(analysis.insights.length / 2)).length > 0 ? (
                   <ul className="space-y-1.5">
                     {analysis.insights.slice(Math.ceil(analysis.insights.length / 2)).map((ins, i) => (
-                      <li key={i} className="text-xs text-amber-700 flex items-start gap-1.5">
+                      <li key={i} className="text-xs text-[#F59E0B] flex items-start gap-1.5">
                         <span className="shrink-0 mt-0.5">•</span>{ins}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-xs text-amber-600">Continue à analyser plus de posts pour voir les points faibles.</p>
+                  <p className="text-xs text-[#8B8B9E]">Continue à analyser plus de posts pour voir les points faibles.</p>
                 )}
               </div>
 
               {/* Meilleur moment */}
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                <h3 className="font-semibold text-blue-800 mb-3 text-sm">📅 Meilleur moment pour poster</h3>
-                <p className="text-xl font-bold text-blue-900 capitalize">{analysis.best_day}</p>
-                <p className="text-xs text-blue-600 mt-1">Score moyen estimé : {Math.round(analysis.avg_engagement)}/100</p>
+              <div className="rounded-lg p-4" style={{ background: "#0F2744", borderLeft: "3px solid #60A5FA" }}>
+                <h3 className="font-semibold text-[#60A5FA] mb-3 text-sm">📅 Meilleur moment pour poster</h3>
+                <p className="text-xl font-bold text-[#F0F0F5] capitalize" style={{ fontFamily: "var(--font-geist-mono), monospace" }}>
+                  {analysis.best_day}
+                </p>
+                <p className="text-xs text-[#60A5FA] mt-1">Score moyen estimé : {Math.round(analysis.avg_engagement)}/100</p>
               </div>
 
               {/* 3 recommandations */}
-              <div className="bg-brand-50 border border-brand-100 rounded-xl p-4">
-                <h3 className="font-semibold text-brand-800 mb-3 text-sm">💡 3 recommandations concrètes</h3>
+              <div className="rounded-lg p-4" style={{ background: "#0D2B22", borderLeft: "3px solid #10B981" }}>
+                <h3 className="font-semibold text-[#10B981] mb-3 text-sm">💡 3 recommandations concrètes</h3>
                 <ul className="space-y-2">
                   {analysis.recommendations.slice(0, 3).map((rec, i) => (
-                    <li key={i} className="flex items-start gap-2 text-xs text-brand-700">
-                      <span className="font-bold shrink-0 mt-0.5">{i + 1}.</span>
+                    <li key={i} className="flex items-start gap-2 text-xs text-[#8B8B9E]">
+                      <span className="font-bold shrink-0 mt-0.5 text-[#10B981]">{i + 1}.</span>
                       {rec}
                     </li>
                   ))}
@@ -882,49 +1007,70 @@ export default function AnalyticsPage() {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-zinc-400">Lance l&apos;analyse pour obtenir des recommandations personnalisées basées sur tes posts.</p>
+            <p className="text-sm text-[#55555F]">Lance l&apos;analyse pour obtenir des recommandations personnalisées basées sur tes posts.</p>
           )}
         </div>
 
         {/* Table */}
         {posts.length > 0 ? (
-          <div className="bg-white rounded-xl border border-zinc-100 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-zinc-100">
-              <h2 className="font-semibold text-zinc-900">Tous tes posts</h2>
+          <div className="rounded-[10px] overflow-hidden" style={{ border: "1px solid #2A2A32" }}>
+            <div className="px-6 py-4" style={{ borderBottom: "1px solid #2A2A32", background: "#1A1A1F" }}>
+              <h2 className="font-semibold text-[#F0F0F5]">Tous tes posts</h2>
             </div>
-            <table className="w-full text-sm">
+            <table className="w-full text-sm" style={{ background: "#111115" }}>
               <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50">
-                  {["Date", "Contenu", "Format", "Likes", "Comments", "Score", "Actions"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wide">{h}</th>
+                <tr style={{ borderBottom: "1px solid #2A2A32" }}>
+                  {["Date", "Contenu", "Format", "Likes", "Comments", "Score", ""].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-[#55555F] uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50">
+              <tbody>
                 {posts.map((p) => (
-                  <tr key={p.id} className="hover:bg-zinc-50/50">
-                    <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">{p.published_at?.slice(0, 10) ?? "—"}</td>
-                    <td className="px-4 py-3 text-zinc-700 max-w-[260px]"><span className="line-clamp-2">{p.content}</span></td>
+                  <tr
+                    key={p.id}
+                    className="transition-colors"
+                    style={{ borderBottom: "1px solid #1E1E26" }}
+                  >
+                    <td className="px-4 py-3 text-[#55555F] whitespace-nowrap">{p.published_at?.slice(0, 10) ?? "—"}</td>
+                    <td className="px-4 py-3 text-[#8B8B9E] max-w-[260px]"><span className="line-clamp-2">{p.content}</span></td>
                     <td className="px-4 py-3">
-                      {p.format ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">{p.format}</span> : "—"}
+                      {p.format ? (
+                        <span
+                          className="px-2 py-0.5 rounded-md text-xs font-medium"
+                          style={{ background: "#1A1A1F", color: "#8B8B9E" }}
+                        >
+                          {p.format}
+                        </span>
+                      ) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-zinc-700">{p.likes}</td>
-                    <td className="px-4 py-3 text-zinc-700">{p.comments}</td>
+                    <td className="px-4 py-3 text-[#F0F0F5]">{p.likes}</td>
+                    <td className="px-4 py-3 text-[#F0F0F5]">{p.comments}</td>
                     <td className="px-4 py-3">
                       {(() => {
                         const score = postScores.get(p.id) ?? 0;
-                        const sl = scoreLabel(score);
+                        const sl    = scoreLabel(score);
                         return (
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-zinc-800 text-sm">{score}</span>
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium ${sl.classes}`}>{sl.text}</span>
+                            <span
+                              className="font-bold text-sm"
+                              style={{ fontFamily: "var(--font-geist-mono), monospace", color: "#F0F0F5" }}
+                            >
+                              {score}
+                            </span>
+                            <span
+                              className="text-xs px-1.5 py-0.5 rounded-md font-medium"
+                              style={{ background: sl.bg, color: sl.color }}
+                            >
+                              {sl.text}
+                            </span>
                           </div>
                         );
                       })()}
                     </td>
                     <td className="px-4 py-3">
-                      <button onClick={() => handleDelete(p.id)} className="text-zinc-300 hover:text-red-400 transition-colors">
-                        <Trash2 size={15} />
+                      <button onClick={() => handleDelete(p.id)} className="text-[#55555F] hover:text-[#EF4444] transition-colors">
+                        <Trash2 size={14} />
                       </button>
                     </td>
                   </tr>
@@ -933,10 +1079,10 @@ export default function AnalyticsPage() {
             </table>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-zinc-100 p-12 text-center shadow-sm">
-            <div className="text-zinc-300 text-4xl mb-3">📊</div>
-            <div className="text-zinc-500 text-sm">Aucun post suivi pour l'instant.</div>
-            <div className="text-zinc-400 text-xs mt-1">Clique sur "↻ Mettre à jour" pour importer tes derniers posts LinkedIn.</div>
+          <div className="card text-center py-12">
+            <div className="text-4xl mb-3">📊</div>
+            <div className="text-[#55555F] text-sm">Aucun post suivi pour l'instant.</div>
+            <div className="text-[#55555F] text-xs mt-1">Clique sur "↻ Mettre à jour" pour importer tes derniers posts LinkedIn.</div>
           </div>
         )}
       </div>

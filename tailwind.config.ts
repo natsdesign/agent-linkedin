@@ -22,14 +22,24 @@ const config: Config = {
           900: "#064e3b",
           950: "#022c22",
         },
+        dark: {
+          base:   "#0F0F10",
+          card:   "#1A1A1F",
+          hover:  "#222228",
+          sidebar:"#0A0A0F",
+        },
       },
       fontFamily: {
-        sans: ["Outfit", "system-ui", "sans-serif"],
+        sans: ["var(--font-geist)", "system-ui", "sans-serif"],
+        mono: ["var(--font-geist-mono)", "monospace"],
       },
       boxShadow: {
-        card: "0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04)",
-        "card-hover": "0 4px 12px -2px rgba(0,0,0,0.08), 0 2px 6px -2px rgba(0,0,0,0.05)",
-        "diffuse": "0 20px 40px -15px rgba(0,0,0,0.05)",
+        card: "0 1px 3px 0 rgba(0,0,0,0.3), 0 1px 2px -1px rgba(0,0,0,0.2)",
+        "card-hover": "0 4px 12px rgba(0,0,0,0.35)",
+        "glow-green": "0 0 12px rgba(16,185,129,0.25)",
+      },
+      borderColor: {
+        DEFAULT: "#2A2A32",
       },
     },
   },

@@ -76,8 +76,8 @@ function ThinkingDots() {
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="w-2 h-2 bg-brand-400 rounded-full animate-bounce"
-          style={{ animationDelay: `${i * 140}ms` }}
+          className="w-2 h-2 rounded-full animate-bounce"
+          style={{ background: "#10B981", animationDelay: `${i * 140}ms` }}
         />
       ))}
     </div>
@@ -124,7 +124,7 @@ function PostCard({
 }) {
   const { showToast } = useToast();
   const [content, setContent] = useState(post.content);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied]   = useState(false);
   const validated = post.status === "validated";
 
   async function handleCopy() {
@@ -174,25 +174,36 @@ function PostCard({
 
   return (
     <div
-      className={cn(
-        "card flex flex-col transition-all duration-300",
-        validated && "border-brand-200 bg-brand-50/30"
-      )}
+      className="flex flex-col transition-all duration-150"
+      style={{
+        background: validated ? "#0D2B22" : "#1A1A1F",
+        border: `1px solid ${validated ? "#10B981" : "#2A2A32"}`,
+        borderRadius: "10px",
+      }}
     >
       {/* Badges */}
-      <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-zinc-100">
+      <div
+        className="flex items-center gap-2 px-4 pt-4 pb-3"
+        style={{ borderBottom: "1px solid #2A2A32" }}
+      >
         {post.format && (
-          <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-brand-100 text-brand-700 border border-brand-200">
+          <span
+            className="px-2 py-0.5 rounded-md text-[11px] font-medium"
+            style={{ background: "#064E3B", color: "#10B981" }}
+          >
             {post.format}
           </span>
         )}
         {post.subject && (
-          <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-zinc-100 text-zinc-500">
+          <span
+            className="px-2 py-0.5 rounded-md text-[11px] font-medium"
+            style={{ background: "#1A1A1F", color: "#55555F" }}
+          >
             {post.subject}
           </span>
         )}
         {validated && (
-          <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-brand-600">
+          <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-[#10B981]">
             <CheckCircle2 size={12} />
             Validé
           </span>
@@ -202,8 +213,11 @@ function PostCard({
       {/* Editable content */}
       <div className="relative px-4 py-3 flex-1">
         {post.regenerating && (
-          <div className="absolute inset-0 bg-white/80 rounded-b-xl flex items-center justify-center backdrop-blur-sm z-10">
-            <div className="flex items-center gap-2 text-brand-600">
+          <div
+            className="absolute inset-0 rounded-b-[10px] flex items-center justify-center backdrop-blur-sm z-10"
+            style={{ background: "rgba(15,15,16,0.8)" }}
+          >
+            <div className="flex items-center gap-2 text-[#10B981]">
               <Loader2 size={15} className="animate-spin" />
               <span className="text-xs font-medium">Régénération…</span>
             </div>
@@ -215,7 +229,7 @@ function PostCard({
             setContent(v);
             onUpdate({ content: v });
           }}
-          className="w-full bg-transparent text-sm text-zinc-700 leading-relaxed resize-none focus:outline-none placeholder-zinc-400"
+          className="w-full bg-transparent text-sm text-[#F0F0F5] leading-relaxed resize-none focus:outline-none placeholder-[#55555F]"
         />
       </div>
 
@@ -224,14 +238,16 @@ function PostCard({
         <button
           onClick={handleRegenerate}
           disabled={post.regenerating || validated}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#8B8B9E] hover:text-[#F0F0F5] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ border: "1px solid #2A2A32" }}
         >
           <RefreshCw size={12} />
           Regénérer
         </button>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#8B8B9E] hover:text-[#F0F0F5] transition-all"
+          style={{ border: "1px solid #2A2A32" }}
         >
           <Copy size={12} />
           {copied ? "Copié !" : "Copier"}
@@ -240,11 +256,16 @@ function PostCard({
           onClick={handleValidate}
           disabled={post.validating || validated}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ml-auto",
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ml-auto active:scale-[0.98]",
             validated
-              ? "bg-brand-100 text-brand-700 border border-brand-200 cursor-default"
-              : "bg-brand-500 hover:bg-brand-600 text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              ? "cursor-default opacity-80"
+              : "disabled:opacity-50 disabled:cursor-not-allowed"
           )}
+          style={
+            validated
+              ? { background: "#064E3B", color: "#10B981", border: "1px solid #10B981" }
+              : { background: "#10B981", color: "#0F0F10" }
+          }
         >
           {post.validating ? (
             <><Loader2 size={12} className="animate-spin" />Validation…</>
@@ -367,8 +388,8 @@ export default function CreatePage() {
 
   if (phase === "loading") {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-brand-500" />
+      <div className="flex h-screen items-center justify-center" style={{ background: "#0F0F10" }}>
+        <Loader2 size={22} className="animate-spin text-[#10B981]" />
       </div>
     );
   }
@@ -377,13 +398,16 @@ export default function CreatePage() {
 
   if (phase === "generating") {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-6 px-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-brand-500 flex items-center justify-center shadow-lg">
-          <Zap size={28} className="text-white animate-pulse" fill="currentColor" />
+      <div className="flex h-screen flex-col items-center justify-center gap-6 px-4 text-center" style={{ background: "#0F0F10" }}>
+        <div
+          className="w-14 h-14 rounded-[10px] flex items-center justify-center"
+          style={{ background: "#0D2B22", border: "1px solid #10B981" }}
+        >
+          <Zap size={24} className="text-[#10B981] animate-pulse" fill="currentColor" />
         </div>
         <div>
-          <p className="text-zinc-900 font-semibold mb-1.5">Génération en cours…</p>
-          <p className="text-sm text-zinc-400 max-w-xs">
+          <p className="text-[#F0F0F5] font-semibold mb-1.5">Génération en cours…</p>
+          <p className="text-sm text-[#55555F] max-w-xs">
             L&apos;agent analyse vos inspirations et génère vos posts.
           </p>
         </div>
@@ -391,8 +415,8 @@ export default function CreatePage() {
           {[0, 1, 2, 3, 4].map((i) => (
             <span
               key={i}
-              className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce"
-              style={{ animationDelay: `${i * 120}ms` }}
+              className="w-1.5 h-1.5 rounded-full animate-bounce"
+              style={{ background: "#10B981", animationDelay: `${i * 120}ms` }}
             />
           ))}
         </div>
@@ -404,10 +428,15 @@ export default function CreatePage() {
 
   if (phase === "posts") {
     return (
-      <div className="flex flex-col min-h-screen pb-20">
+      <div className="flex flex-col min-h-screen pb-20" style={{ background: "#0F0F10" }}>
         <div className="px-8 pt-8 pb-6">
-          <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">Posts générés</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">
+          <h1
+            className="text-2xl font-semibold text-[#F0F0F5] tracking-tight"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Posts générés
+          </h1>
+          <p className="text-sm text-[#55555F] mt-0.5">
             {posts.length} post{posts.length > 1 ? "s" : ""} · éditez, validez ou regénérez
           </p>
         </div>
@@ -424,25 +453,33 @@ export default function CreatePage() {
         </div>
 
         {/* Sticky bottom bar */}
-        <div className="fixed bottom-0 left-60 right-0 z-20 bg-white/95 backdrop-blur-sm border-t border-zinc-200 px-8 py-3">
+        <div
+          className="fixed bottom-0 right-0 z-20 px-8 py-3"
+          style={{
+            left: "220px",
+            background: "rgba(10,10,15,0.95)",
+            backdropFilter: "blur(8px)",
+            borderTop: "1px solid #2A2A32",
+          }}
+        >
           <div className="flex items-center justify-between">
-            <p className="text-sm text-zinc-500">
-              <span className="text-zinc-900 font-semibold">{validatedCount}</span> post
+            <p className="text-sm text-[#8B8B9E]">
+              <span className="text-[#F0F0F5] font-semibold">{validatedCount}</span> post
               {validatedCount > 1 ? "s" : ""} validé{validatedCount > 1 ? "s" : ""}{" "}
-              <span className="text-zinc-300">sur {posts.length}</span>
+              <span className="text-[#55555F]">sur {posts.length}</span>
             </p>
             <button
               onClick={() => router.push("/calendar")}
               disabled={validatedCount === 0}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.98]",
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.98]"
+              style={
                 validatedCount > 0
-                  ? "bg-brand-500 hover:bg-brand-600 text-white"
-                  : "bg-zinc-100 text-zinc-300 cursor-not-allowed"
-              )}
+                  ? { background: "#10B981", color: "#0F0F10" }
+                  : { background: "#1A1A1F", color: "#55555F", cursor: "not-allowed" }
+              }
             >
               Aller au calendrier
-              <ChevronRight size={15} />
+              <ChevronRight size={14} />
             </button>
           </div>
         </div>
@@ -453,15 +490,21 @@ export default function CreatePage() {
   // ── Chat ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-50">
+    <div className="flex flex-col h-screen" style={{ background: "#0F0F10" }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 bg-white shrink-0">
-        <div className="w-9 h-9 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center">
-          <Zap size={17} className="text-brand-600" />
+      <div
+        className="flex items-center gap-3 px-6 py-4 shrink-0"
+        style={{ borderBottom: "1px solid #2A2A32", background: "#0A0A0F" }}
+      >
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{ background: "#0D2B22", border: "1px solid #064E3B" }}
+        >
+          <Zap size={15} className="text-[#10B981]" />
         </div>
         <div>
-          <h1 className="font-semibold text-zinc-900 text-sm">Agent Créateur</h1>
-          <p className="text-xs text-zinc-400">
+          <h1 className="font-semibold text-[#F0F0F5] text-sm">Agent Créateur</h1>
+          <p className="text-xs text-[#55555F]">
             {step === "done" ? "Prêt à générer vos posts" : `Question ${step} sur 3`}
           </p>
         </div>
@@ -471,14 +514,16 @@ export default function CreatePage() {
           {([1, 2, 3] as const).map((s) => (
             <span
               key={s}
-              className={cn(
-                "w-2 h-2 rounded-full transition-all",
-                step === "done" || s < step
-                  ? "bg-brand-500"
-                  : s === step
-                  ? "bg-brand-400 scale-125"
-                  : "bg-zinc-200"
-              )}
+              className="w-2 h-2 rounded-full transition-all"
+              style={{
+                background:
+                  step === "done" || s < step
+                    ? "#10B981"
+                    : s === step
+                    ? "#34D399"
+                    : "#2A2A32",
+                transform: s === step ? "scale(1.25)" : "scale(1)",
+              }}
             />
           ))}
         </div>
@@ -492,12 +537,17 @@ export default function CreatePage() {
             className={cn("flex flex-col gap-2", msg.from === "user" ? "items-end" : "items-start")}
           >
             <div
-              className={cn(
-                "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+              className="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed"
+              style={
                 msg.from === "user"
-                  ? "bg-brand-500 text-white rounded-br-sm"
-                  : "bg-white border border-zinc-200 text-zinc-700 rounded-bl-sm shadow-sm"
-              )}
+                  ? { background: "#10B981", color: "#0F0F10", borderBottomRightRadius: "4px" }
+                  : {
+                      background: "#0D2B22",
+                      color: "#F0F0F5",
+                      borderBottomLeftRadius: "4px",
+                      borderLeft: "2px solid #10B981",
+                    }
+              }
             >
               <p className="whitespace-pre-wrap">{msg.text}</p>
             </div>
@@ -509,7 +559,8 @@ export default function CreatePage() {
                   <button
                     key={s}
                     onClick={() => submitAnswer(s)}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-white border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:border-brand-300 hover:bg-brand-50 transition-all"
+                    className="px-3 py-1.5 rounded-full text-xs font-medium text-[#8B8B9E] hover:text-[#F0F0F5] hover:bg-[#1A1A1F] transition-all"
+                    style={{ border: "1px solid #2A2A32" }}
                   >
                     {s}
                   </button>
@@ -521,7 +572,14 @@ export default function CreatePage() {
 
         {agentTyping && (
           <div className="flex items-start">
-            <div className="bg-white border border-zinc-200 rounded-2xl rounded-bl-sm shadow-sm">
+            <div
+              className="rounded-2xl"
+              style={{
+                borderBottomLeftRadius: "4px",
+                background: "#0D2B22",
+                borderLeft: "2px solid #10B981",
+              }}
+            >
               <ThinkingDots />
             </div>
           </div>
@@ -529,15 +587,19 @@ export default function CreatePage() {
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 px-6 py-4 border-t border-zinc-200 bg-white">
+      <div
+        className="shrink-0 px-6 py-4"
+        style={{ borderTop: "1px solid #2A2A32", background: "#0A0A0F" }}
+      >
         {step === "done" ? (
           <button
             onClick={handleGenerate}
-            className="w-full flex items-center justify-center gap-2.5 py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-all active:scale-[0.98] shadow-sm"
+            className="w-full flex items-center justify-center gap-2.5 py-3 font-semibold rounded-xl transition-all active:scale-[0.98]"
+            style={{ background: "#10B981", color: "#0F0F10" }}
           >
-            <Zap size={17} />
+            <Zap size={16} fill="currentColor" />
             Générer mes posts
-            <ChevronRight size={17} />
+            <ChevronRight size={16} />
           </button>
         ) : (
           <div className="flex items-end gap-3">
@@ -554,16 +616,25 @@ export default function CreatePage() {
                   : "Nombre de posts et format…"
               }
               rows={1}
-              className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-all"
-              style={{ maxHeight: "120px", overflowY: "auto" }}
+              className="flex-1 rounded-xl px-4 py-2.5 text-sm leading-relaxed resize-none focus:outline-none transition-all"
+              style={{
+                background: "#111115",
+                border: "1px solid #2A2A32",
+                color: "#F0F0F5",
+                maxHeight: "120px",
+                overflowY: "auto",
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "#10B981"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "#2A2A32"; }}
               disabled={agentTyping}
             />
             <button
               onClick={() => submitAnswer(input)}
               disabled={!input.trim() || agentTyping}
-              className="flex items-center justify-center w-10 h-10 bg-brand-500 hover:bg-brand-600 text-white rounded-xl transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              className="flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              style={{ background: "#10B981", color: "#0F0F10" }}
             >
-              <Send size={15} />
+              <Send size={14} />
             </button>
           </div>
         )}
