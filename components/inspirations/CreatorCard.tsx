@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import {
   MoreVertical,
   Trash2,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn, formatNumber, timeAgo } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
+import { CreatorPostsModal } from "@/components/inspirations/CreatorPostsModal";
 import type { Category, CreatorWithCount } from "@/types";
 
 // ─── Category badge config ────────────────────────────────────────────────────
@@ -33,6 +33,8 @@ const AVATAR_GRADIENTS = [
 ];
 
 function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
+  const [imgError, setImgError] = useState(false);
+
   const initials = name
     .split(" ")
     .map((w) => w[0])
@@ -42,17 +44,20 @@ function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null })
 
   const gradient = AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
 
-  if (avatarUrl) {
+  if (avatarUrl && !imgError) {
     return (
-      <Image
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
         src={avatarUrl}
         alt={name}
         width={44}
         height={44}
         className="w-11 h-11 rounded-full object-cover shrink-0"
+        onError={() => setImgError(true)}
       />
     );
   }
+
   return (
     <div
       className={cn(
@@ -83,10 +88,11 @@ type Props = {
 
 export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
   const { showToast } = useToast();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [scraping, setScraping] = useState(false);
-  const [runId,    setRunId]    = useState<string | null>(null);
-  const [local,    setLocal]    = useState<LocalState>({
+  const [menuOpen,    setMenuOpen]    = useState(false);
+  const [scraping,    setScraping]    = useState(false);
+  const [runId,       setRunId]       = useState<string | null>(null);
+  const [postsModal,  setPostsModal]  = useState(false);
+  const [local,       setLocal]       = useState<LocalState>({
     last_scraped_at: creator.last_scraped_at,
     post_count:      creator.post_count,
     avatar_url:      creator.avatar_url,
@@ -143,123 +149,133 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
   const badge = creator.category ? CATEGORY_CONFIG[creator.category] : null;
 
   return (
-    <div className="card-hover p-4 flex flex-col gap-4 group">
-      {/* Top row */}
-      <div className="flex items-start gap-3">
-        <Avatar name={creator.name} avatarUrl={local.avatar_url} />
+    <>
+      <div className="card-hover p-4 flex flex-col gap-4 group">
+        {/* Top row */}
+        <div className="flex items-start gap-3">
+          <Avatar name={creator.name} avatarUrl={local.avatar_url} />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-1">
-            <div className="min-w-0">
-              <p className="font-semibold text-zinc-900 text-sm leading-tight truncate">
-                {creator.name}
-              </p>
-              <a
-                href={creator.linkedin_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-zinc-400 hover:text-brand-500 transition-colors truncate block"
-              >
-                {creator.linkedin_url.replace(/^https?:\/\/(www\.)?/, "")}
-              </a>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-1">
+              <div className="min-w-0">
+                <p className="font-semibold text-zinc-900 text-sm leading-tight truncate">
+                  {creator.name}
+                </p>
+                <a
+                  href={creator.linkedin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-zinc-400 hover:text-brand-500 transition-colors truncate block"
+                >
+                  {creator.linkedin_url.replace(/^https?:\/\/(www\.)?/, "")}
+                </a>
+              </div>
+
+              {/* 3-dot menu */}
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className="p-1 rounded-md text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <MoreVertical size={15} />
+                </button>
+
+                {menuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                    <div className="absolute right-0 top-6 z-20 w-44 bg-white border border-zinc-200 rounded-xl shadow-lg py-1 overflow-hidden">
+                      <button
+                        onClick={() => { setPostsModal(true); setMenuOpen(false); }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
+                      >
+                        <FileText size={14} className="text-zinc-400" />
+                        Voir les posts
+                      </button>
+                      <a
+                        href={creator.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
+                      >
+                        <ExternalLink size={14} className="text-zinc-400" />
+                        Profil LinkedIn
+                      </a>
+                      <div className="my-1 border-t border-zinc-100" />
+                      <button
+                        onClick={() => { onDelete(creator.id); setMenuOpen(false); }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                        Supprimer
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            {/* 3-dot menu */}
-            <div className="relative shrink-0">
-              <button
-                onClick={() => setMenuOpen((v) => !v)}
-                className="p-1 rounded-md text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 transition-all opacity-0 group-hover:opacity-100"
+            {/* Category badge */}
+            {badge && (
+              <span
+                className={cn(
+                  "inline-flex items-center mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border",
+                  badge.className
+                )}
               >
-                <MoreVertical size={15} />
-              </button>
-
-              {menuOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute right-0 top-6 z-20 w-44 bg-white border border-zinc-200 rounded-xl shadow-lg py-1 overflow-hidden">
-                    <a
-                      href={`/inspirations/${creator.id}`}
-                      className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
-                    >
-                      <FileText size={14} className="text-zinc-400" />
-                      Voir les posts
-                    </a>
-                    <a
-                      href={creator.linkedin_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
-                    >
-                      <ExternalLink size={14} className="text-zinc-400" />
-                      Profil LinkedIn
-                    </a>
-                    <div className="my-1 border-t border-zinc-100" />
-                    <button
-                      onClick={() => { onDelete(creator.id); setMenuOpen(false); }}
-                      className="flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                      Supprimer
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                {badge.label}
+              </span>
+            )}
           </div>
-
-          {/* Category badge */}
-          {badge && (
-            <span
-              className={cn(
-                "inline-flex items-center mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border",
-                badge.className
-              )}
-            >
-              {badge.label}
-            </span>
-          )}
         </div>
-      </div>
 
-      {/* Stats row */}
-      <div className="flex items-center justify-between pt-1 border-t border-zinc-100">
-        <div className="flex items-center gap-3 text-xs text-zinc-400">
-          {creator.follower_count != null && creator.follower_count > 0 && (
-            <span>{formatNumber(creator.follower_count)} abonnés</span>
-          )}
-          <span>
-            <span className="text-zinc-700 font-semibold">{local.post_count}</span>{" "}
-            post{local.post_count !== 1 ? "s" : ""}
+        {/* Stats row */}
+        <div className="flex items-center justify-between pt-1 border-t border-zinc-100">
+          <div className="flex items-center gap-3 text-xs text-zinc-400">
+            {creator.follower_count != null && creator.follower_count > 0 && (
+              <span>{formatNumber(creator.follower_count)} abonnés</span>
+            )}
+            <span>
+              <span className="text-zinc-700 font-semibold">{local.post_count}</span>{" "}
+              post{local.post_count !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <span className="text-[11px] text-zinc-300">
+            {local.last_scraped_at ? timeAgo(local.last_scraped_at) : "Jamais scrapé"}
           </span>
         </div>
-        <span className="text-[11px] text-zinc-300">
-          {local.last_scraped_at ? timeAgo(local.last_scraped_at) : "Jamais scrapé"}
-        </span>
+
+        {/* Scrape button */}
+        <button
+          onClick={handleScrape}
+          disabled={scraping}
+          className={cn(
+            "w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold border transition-all active:scale-[0.98]",
+            scraping
+              ? "border-brand-200 bg-brand-50 text-brand-600 cursor-not-allowed"
+              : "border-zinc-200 bg-zinc-50 text-zinc-500 hover:text-zinc-800 hover:border-zinc-300 hover:bg-zinc-100"
+          )}
+        >
+          {scraping ? (
+            <>
+              <Loader2 size={12} className="animate-spin" />
+              Scraping en cours…
+            </>
+          ) : (
+            <>
+              <RefreshCw size={12} />
+              Scraper
+            </>
+          )}
+        </button>
       </div>
 
-      {/* Scrape button */}
-      <button
-        onClick={handleScrape}
-        disabled={scraping}
-        className={cn(
-          "w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold border transition-all active:scale-[0.98]",
-          scraping
-            ? "border-brand-200 bg-brand-50 text-brand-600 cursor-not-allowed"
-            : "border-zinc-200 bg-zinc-50 text-zinc-500 hover:text-zinc-800 hover:border-zinc-300 hover:bg-zinc-100"
-        )}
-      >
-        {scraping ? (
-          <>
-            <Loader2 size={12} className="animate-spin" />
-            Scraping en cours…
-          </>
-        ) : (
-          <>
-            <RefreshCw size={12} />
-            Scraper
-          </>
-        )}
-      </button>
-    </div>
+      {postsModal && (
+        <CreatorPostsModal
+          creatorId={creator.id}
+          creatorName={creator.name}
+          onClose={() => setPostsModal(false)}
+        />
+      )}
+    </>
   );
 }

@@ -6,6 +6,7 @@ const nextConfig = {
       { protocol: "https", hostname: "static.licdn.com" },
       { protocol: "https", hostname: "**.licdn.com" },
       { protocol: "https", hostname: "**.supabase.co" },
+      { protocol: "https", hostname: "**.linkedin.com" },
     ],
   },
 };
