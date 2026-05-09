@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveAccountId } from "@/lib/account-context";
 
 export async function GET() {
   const supabase = createClient();
+  const accountId = await getActiveAccountId();
+
   const { data, error } = await supabase
     .from("my_posts")
     .select("*")
+    .eq("account_id", accountId)
     .order("published_at", { ascending: false, nullsFirst: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -28,6 +32,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from("my_posts")
     .insert({
+      account_id: accountId,
       content,
       published_at: published_at || null,
       likes: likes ?? 0,

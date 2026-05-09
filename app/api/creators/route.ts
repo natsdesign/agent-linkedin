@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveAccountId } from "@/lib/account-context";
 
 export async function GET() {
   const supabase = createClient();
+  const accountId = await getActiveAccountId();
 
   const { data, error } = await supabase
     .from("creators")
     .select("*, scraped_posts(count)")
+    .eq("account_id", accountId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -23,6 +26,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
+  const accountId = await getActiveAccountId();
 
   const body = await req.json();
   const { name, linkedin_url, category } = body;
@@ -38,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("creators")
-    .insert({ name, linkedin_url, category: category ?? null })
+    .insert({ name, linkedin_url, category: category ?? null, account_id: accountId })
     .select()
     .single();
 

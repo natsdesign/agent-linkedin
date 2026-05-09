@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getScrapingResults } from "@/lib/apify";
 import { analyzePost } from "@/lib/claude";
 import { refreshInsights } from "@/lib/insights";
+import { getActiveAccountId } from "@/lib/account-context";
 
 type Params = { params: { id: string } };
 
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const { posts: scrapedPosts, avatarUrl } = result;
   const supabase = createClient();
+  const accountId = await getActiveAccountId();
 
   // Run finished but no posts (failed/aborted/empty)
   if (scrapedPosts.length === 0) {
@@ -46,7 +48,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { data: existing } = await supabase
     .from("scraped_posts")
     .select("post_url")
-    .eq("creator_id", params.id);
+    .eq("creator_id", params.id)
+    .eq("account_id", accountId);
 
   const existingUrls = new Set(
     (existing ?? []).map((p: { post_url: string | null }) => p.post_url).filter(Boolean)
@@ -77,6 +80,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     const a = analyses[i];
     return {
       creator_id:   params.id,
+      account_id:   accountId,
       content:      p.content,
       published_at: p.publishedAt,
       likes:        p.likes,

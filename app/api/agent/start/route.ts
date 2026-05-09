@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveAccountId } from "@/lib/account-context";
 
 const TONE_BASE = ["inspirant", "direct", "éducatif", "storytelling", "humour"];
 
 export async function GET() {
   const supabase = createClient();
+  const accountId = await getActiveAccountId();
 
   const [profileRes, insightsRes] = await Promise.all([
     supabase.from("creator_profile").select("*").limit(1).maybeSingle(),
-    supabase.from("insights").select("*").limit(1).maybeSingle(),
+    supabase.from("insights").select("*").eq("account_id", accountId).limit(1).maybeSingle(),
   ]);
 
   const profile = profileRes.data;

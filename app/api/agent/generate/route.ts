@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generatePosts } from "@/lib/claude";
+import { getActiveAccountId } from "@/lib/account-context";
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
+  const accountId = await getActiveAccountId();
   const body = await req.json();
   const { subjects, tone, count, format } = body as {
     subjects: string;
@@ -18,7 +20,7 @@ export async function POST(req: NextRequest) {
 
   const [profileRes, insightsRes] = await Promise.all([
     supabase.from("creator_profile").select("*").limit(1).maybeSingle(),
-    supabase.from("insights").select("*").limit(1).maybeSingle(),
+    supabase.from("insights").select("*").eq("account_id", accountId).limit(1).maybeSingle(),
   ]);
 
   const profile = profileRes.data ?? {};
@@ -57,6 +59,7 @@ export async function POST(req: NextRequest) {
     .from("generated_posts")
     .insert(
       generated.map((p) => ({
+        account_id: accountId,
         content: p.content,
         hook: p.hook,
         cta: p.cta,

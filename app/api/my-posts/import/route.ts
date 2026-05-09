@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { scrapeLinkedInPosts } from "@/lib/apify";
 import { analyzePost } from "@/lib/claude";
+import { getActiveAccountId } from "@/lib/account-context";
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
+  const accountId = await getActiveAccountId();
   const body = await req.json().catch(() => ({}));
 
   // Get creator_profile for linkedin_url and current avatar
@@ -43,6 +45,7 @@ export async function POST(req: NextRequest) {
   const { data: existing } = await supabase
     .from("my_posts")
     .select("post_url, content, published_at")
+    .eq("account_id", accountId)
     .order("published_at", { ascending: false });
 
   const existingUrls = new Set(
@@ -89,6 +92,7 @@ export async function POST(req: NextRequest) {
         ? p.likes / 100
         : 0;
     return {
+      account_id:      accountId,
       content:         p.content,
       published_at:    p.publishedAt,
       likes:           p.likes,
