@@ -7,10 +7,10 @@ export async function POST(req: NextRequest) {
   const supabase = createClient();
   const body = await req.json().catch(() => ({}));
 
-  // Get linkedin_url from creator_profile
+  // Get creator_profile for linkedin_url and current avatar
   const { data: profile } = await supabase
     .from("creator_profile")
-    .select("linkedin_url")
+    .select("id, linkedin_url, avatar_url")
     .limit(1)
     .maybeSingle();
 
@@ -22,9 +22,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Scrape (synchronous, up to 120s)
-  const posts = await scrapeLinkedInPosts(linkedinUrl);
-  console.log('MAPPED ITEM:', JSON.stringify(posts[0], null, 2));
+  // Scrape (synchronous, up to 120s) — now returns { posts, avatarUrl }
+  const { posts, avatarUrl } = await scrapeLinkedInPosts(linkedinUrl);
+  console.log("MAPPED ITEM:", JSON.stringify(posts[0], null, 2));
+  console.log("Avatar URL (my-posts):", avatarUrl);
+
+  // Save avatar_url to creator_profile if not already set
+  if (avatarUrl && profile?.id && !profile.avatar_url) {
+    void supabase
+      .from("creator_profile")
+      .update({ avatar_url: avatarUrl })
+      .eq("id", profile.id);
+  }
 
   if (posts.length === 0) {
     return NextResponse.json({ imported: 0, skipped: 0, total: 0 });

@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   for (const creator of due) {
     try {
       // Only scrape 5 most recent posts (delta mode — avoids re-processing 30 posts daily)
-      const scrapedPosts = await scrapeLinkedInPosts(creator.linkedin_url, 5);
+      const { posts: scrapedPosts } = await scrapeLinkedInPosts(creator.linkedin_url, 5);
 
       void supabase.from("apify_runs").insert({
         creator_id:    creator.id,

@@ -30,7 +30,7 @@ function num(obj: Record<string, unknown>, ...keys: string[]): number {
   return 0;
 }
 
-// Extracts a number from a nested path like "reactions.count"
+// Extracts a number from a nested path like "reactions.count" or "engagement.likes"
 function nestedNum(obj: Record<string, unknown>, path: string): number {
   const parts = path.split(".");
   let cur: unknown = obj;
@@ -39,6 +39,17 @@ function nestedNum(obj: Record<string, unknown>, path: string): number {
     cur = (cur as Record<string, unknown>)[p];
   }
   return typeof cur === "number" ? cur : 0;
+}
+
+// Extracts a string from a nested path like "postedAt.date" or "author.avatar.url"
+function nestedStr(obj: Record<string, unknown>, path: string): string {
+  const parts = path.split(".");
+  let cur: unknown = obj;
+  for (const p of parts) {
+    if (cur == null || typeof cur !== "object") return "";
+    cur = (cur as Record<string, unknown>)[p];
+  }
+  return typeof cur === "string" ? cur : "";
 }
 
 // Deep-scan any value for a LinkedIn CDN profile picture URL
@@ -77,6 +88,9 @@ function deepScanLinkedInUrl(obj: unknown, depth = 0): string | null {
 }
 
 function extractAvatarUrl(item: Record<string, unknown>): string | null {
+  // Try the known exact path first, then fall back to deep scan
+  const specific = nestedStr(item, "author.avatar.url");
+  if (specific) return specific;
   return deepScanLinkedInUrl(item);
 }
 
@@ -84,12 +98,15 @@ function mapItems(items: Record<string, unknown>[]): ScrapedLinkedInPost[] {
   return items
     .map((item): ScrapedLinkedInPost => ({
       content:     str(item, "text", "content", "postText", "body"),
-      publishedAt: str(item, "postedAt", "publishedAt", "date", "createdAt") || null,
-      likes:    num(item, "likeCount", "likesCount", "numLikes", "totalReactionCount", "likes") || nestedNum(item, "reactions.count"),
-      comments: num(item, "commentCount", "commentsCount", "numComments", "comments"),
-      shares:   num(item, "repostCount", "shareCount", "sharesCount", "numShares", "shares"),
+      // postedAt.date is the nested field; fallback to flat fields
+      publishedAt: nestedStr(item, "postedAt.date") || str(item, "postedAt", "publishedAt", "date", "createdAt") || null,
+      // engagement.likes is the nested field; fallback to flat fields
+      likes:    nestedNum(item, "engagement.likes") || num(item, "likeCount", "likesCount", "numLikes", "totalReactionCount", "likes") || nestedNum(item, "reactions.count"),
+      comments: nestedNum(item, "engagement.comments") || num(item, "commentCount", "commentsCount", "numComments", "comments"),
+      shares:   nestedNum(item, "engagement.shares") || num(item, "repostCount", "shareCount", "sharesCount", "numShares", "shares"),
       views:    num(item, "viewCount", "impressionCount", "numImpressions", "views"),
-      postUrl:  str(item, "url", "postUrl", "shareUrl", "link") || null,
+      // linkedinUrl is the exact field name in this actor version
+      postUrl:  str(item, "linkedinUrl", "url", "postUrl", "shareUrl", "link") || null,
     }))
     .filter((p) => p.content.trim().length > 0);
 }
@@ -98,16 +115,24 @@ function mapItems(items: Record<string, unknown>[]): ScrapedLinkedInPost[] {
 export async function scrapeLinkedInPosts(
   linkedinUrl: string,
   maxPosts = 30
-): Promise<ScrapedLinkedInPost[]> {
+): Promise<ScrapingResult> {
   const run = await client.actor("harvestapi/linkedin-profile-posts").call(
     { targetUrls: [linkedinUrl], maxPosts, includeQuotePosts: true, includeReposts: false, scrapeComments: false, scrapeReactions: false },
     { waitSecs: 120 }
   );
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
   const rawItems = items as Record<string, unknown>[];
-  console.log('RAW APIFY ITEM:', JSON.stringify(rawItems[0], null, 2));
-  return mapItems(rawItems);
+  console.log("RAW APIFY ITEM:", JSON.stringify(rawItems[0], null, 2));
+  const posts = mapItems(rawItems);
+  const avatarUrl = rawItems.length > 0 ? extractAvatarUrl(rawItems[0]) : null;
+  console.log("Avatar URL (sync):", avatarUrl);
+  return { posts, avatarUrl };
 }
+
+export type ScrapingResult = {
+  posts: ScrapedLinkedInPost[];
+  avatarUrl: string | null;
+};
 
 // Async scrape — starts the Apify run and returns immediately
 export async function startScraping(linkedinUrl: string): Promise<string> {
@@ -121,11 +146,6 @@ export async function startScraping(linkedinUrl: string): Promise<string> {
   });
   return run.id;
 }
-
-export type ScrapingResult = {
-  posts: ScrapedLinkedInPost[];
-  avatarUrl: string | null;
-};
 
 // Poll run status — returns { posts, avatarUrl } when done, null if still running
 export async function getScrapingResults(
