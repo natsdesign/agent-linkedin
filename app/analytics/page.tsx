@@ -20,6 +20,24 @@ type AnalysisResult = {
   recommendations: string[];
 };
 
+// ─── Score helpers ─────────────────────────────────────────────────────────────
+
+function calcRaw(p: { likes: number; comments: number; shares: number }): number {
+  return p.likes * 2 + p.comments * 5 + (p.shares ?? 0) * 3;
+}
+
+function calcScore(raw: number, maxRaw: number): number {
+  if (maxRaw === 0) return 0;
+  return Math.round((raw / maxRaw) * 100);
+}
+
+function scoreLabel(score: number): { text: string; classes: string } {
+  if (score >= 75) return { text: "🔥 Viral", classes: "bg-red-50 text-red-600 border-red-200" };
+  if (score >= 50) return { text: "⚡ Fort", classes: "bg-orange-50 text-orange-600 border-orange-200" };
+  if (score >= 25) return { text: "👍 Correct", classes: "bg-emerald-50 text-emerald-600 border-emerald-200" };
+  return { text: "📉 Faible", classes: "bg-zinc-100 text-zinc-400 border-zinc-200" };
+}
+
 // ─── Heatmap (SVG natif, style GitHub) ────────────────────────────────────────
 
 function Heatmap({ posts }: { posts: MyPost[] }) {
@@ -33,15 +51,19 @@ function Heatmap({ posts }: { posts: MyPost[] }) {
   start.setDate(today.getDate() - WEEKS * 7);
   start.setDate(start.getDate() - start.getDay());
 
-  const postMap: Record<string, { engagement: number; likes: number; content: string }> = {};
+  const maxRaw = posts.length > 0 ? Math.max(...posts.map((p) => calcRaw(p))) : 0;
+
+  const postMap: Record<string, { score: number; likes: number; comments: number; content: string }> = {};
   posts.forEach((p) => {
     if (!p.published_at) return;
     const d = p.published_at.slice(0, 10);
-    postMap[d] = { engagement: p.engagement_rate ?? 0, likes: p.likes, content: p.content.slice(0, 80) };
+    postMap[d] = {
+      score: calcScore(calcRaw(p), maxRaw),
+      likes: p.likes,
+      comments: p.comments,
+      content: p.content.slice(0, 80),
+    };
   });
-
-  const engagements = posts.map((p) => p.engagement_rate ?? 0).filter((e) => e > 0).sort((a, b) => a - b);
-  const viralThreshold = engagements.length > 0 ? engagements[Math.floor(engagements.length * 0.8)] : Infinity;
 
   const cells: { x: number; y: number; date: string; info: typeof postMap[string] | null }[] = [];
   for (let w = 0; w < WEEKS; w++) {
@@ -61,7 +83,7 @@ function Heatmap({ posts }: { posts: MyPost[] }) {
       <svg width={WEEKS * (CELL + GAP)} height={DAYS * (CELL + GAP) + 20} className="block">
         {cells.map((c) => {
           let fill = "#e5e7eb";
-          if (c.info) fill = c.info.engagement >= viralThreshold ? "#16a34a" : "#86efac";
+          if (c.info) fill = c.info.score >= 75 ? "#16a34a" : c.info.score >= 25 ? "#86efac" : "#d1fae5";
           return (
             <rect
               key={c.date}
@@ -79,18 +101,18 @@ function Heatmap({ posts }: { posts: MyPost[] }) {
           <div className="font-medium">{tooltip.date}</div>
           {tooltip.info ? (
             <>
-              <div>{tooltip.info.likes} likes • {tooltip.info.engagement.toFixed(1)}% engagement</div>
+              <div>Score {tooltip.info.score}/100 • {tooltip.info.likes} likes • {tooltip.info.comments} comments</div>
               <div className="mt-1 text-zinc-300 leading-snug">{tooltip.info.content}…</div>
             </>
           ) : <div className="text-zinc-400">Pas de post ce jour-là</div>}
         </div>
       )}
       <div className="flex items-center gap-2 mt-2 text-xs text-zinc-400">
-        <span>Moins</span>
-        {["#e5e7eb", "#86efac", "#16a34a"].map((c) => (
+        <span>Faible</span>
+        {["#e5e7eb", "#d1fae5", "#86efac", "#16a34a"].map((c) => (
           <span key={c} className="w-3 h-3 rounded-sm inline-block" style={{ background: c }} />
         ))}
-        <span>Plus</span>
+        <span>Viral</span>
       </div>
     </div>
   );
@@ -345,24 +367,23 @@ export default function AnalyticsPage() {
     });
   }
 
-  // ── KPIs ──
-  const noViews = posts.every((p) => !p.views || p.views === 0);
-  const allEngagementZero = posts.every((p) => !p.engagement_rate || p.engagement_rate === 0);
+  // ── Score computation ──
+  const maxRaw = posts.length > 0 ? Math.max(...posts.map((p) => calcRaw(p))) : 0;
+  const postScores = new Map(posts.map((p) => [p.id, calcScore(calcRaw(p), maxRaw)]));
 
-  const postsWithEngagement = posts.filter((p) => (p.engagement_rate ?? 0) > 0);
-  const avgEngagement = (() => {
-    if (postsWithEngagement.length > 0) {
-      return postsWithEngagement.reduce((s, p) => s + (p.engagement_rate ?? 0), 0) / postsWithEngagement.length;
-    }
-    // Fallback: avg likes as proxy (likes / 100)
-    const withLikes = posts.filter((p) => p.likes > 0);
-    if (withLikes.length > 0) {
-      return withLikes.reduce((s, p) => s + p.likes, 0) / withLikes.length / 100;
-    }
-    return 0;
-  })();
+  const avgScore = posts.length > 0
+    ? Math.round(posts.reduce((s, p) => s + (postScores.get(p.id) ?? 0), 0) / posts.length)
+    : 0;
 
   const bestPost = posts.reduce<MyPost | null>((best, p) => (!best || p.likes > best.likes ? p : best), null);
+  const bestPostScore = bestPost ? (postScores.get(bestPost.id) ?? 0) : 0;
+
+  const thisMonthStart = new Date();
+  thisMonthStart.setDate(1);
+  const monthLikes = posts
+    .filter((p) => p.published_at && p.published_at >= thisMonthStart.toISOString().slice(0, 10))
+    .reduce((s, p) => s + p.likes, 0);
+  const estimatedReach = monthLikes * 35;
 
   const postDays = new Set(posts.map((p) => p.published_at?.slice(0, 10)).filter(Boolean));
   let streak = 0;
@@ -373,27 +394,33 @@ export default function AnalyticsPage() {
     streak++;
     cur.setDate(cur.getDate() - 1);
   }
+  const streakDisplay = streak === 0
+    ? "Pas de streak actif"
+    : streak >= 7
+      ? `🔥 ${streak} jours de streak !`
+      : `📅 ${streak} jour${streak > 1 ? "s" : ""} consécutif${streak > 1 ? "s" : ""}`;
 
   // ── Chart data ──
-  // If all engagement_rate are 0/null, fall back to showing likes over time
   const lineData = posts
     .filter((p) => p.published_at)
     .sort((a, b) => (a.published_at! > b.published_at! ? 1 : -1))
     .slice(-30)
     .map((p) => ({
-      date:  p.published_at!.slice(0, 10),
-      value: allEngagementZero ? p.likes : Number((p.engagement_rate ?? 0).toFixed(2)),
+      date: p.published_at!.slice(0, 10),
+      value: postScores.get(p.id) ?? 0,
+      likes: p.likes,
+      comments: p.comments,
     }));
 
-  const formatMap: Record<string, { total: number; count: number }> = {};
+  const formatMap: Record<string, { totalScore: number; count: number }> = {};
   posts.forEach((p) => {
     if (!p.format) return;
-    if (!formatMap[p.format]) formatMap[p.format] = { total: 0, count: 0 };
-    formatMap[p.format].total += p.engagement_rate ?? 0;
+    if (!formatMap[p.format]) formatMap[p.format] = { totalScore: 0, count: 0 };
+    formatMap[p.format].totalScore += postScores.get(p.id) ?? 0;
     formatMap[p.format].count += 1;
   });
-  const barData = Object.entries(formatMap).map(([format, { total, count }]) => ({
-    format, avg: Number((total / count).toFixed(2)),
+  const barData = Object.entries(formatMap).map(([format, { totalScore, count }]) => ({
+    format, avg: Math.round(totalScore / count),
   }));
 
   const FORMAT_COLORS: Record<string, string> = {
@@ -505,21 +532,17 @@ export default function AnalyticsPage() {
         )}
 
         {/* KPI cards */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           {[
             {
-              label: "Engagement moyen",
-              value: noViews && allEngagementZero
-                ? `${avgEngagement.toFixed(2)}%`
-                : `${avgEngagement.toFixed(2)}%`,
-              sub: noViews && allEngagementZero
-                ? "(basé sur likes+comments)"
-                : `sur ${postsWithEngagement.length} posts avec vues`,
+              label: "Score moyen",
+              value: `${avgScore}/100`,
+              sub: "basé sur likes × 2 + comments × 5",
             },
             {
               label: "Meilleur post",
-              value: bestPost ? `${bestPost.likes} likes` : "—",
-              sub: bestPost ? bestPost.content.slice(0, 40) + "…" : "Aucun post",
+              value: bestPost ? `Score ${bestPostScore} ${scoreLabel(bestPostScore).text.split(" ")[0]}` : "—",
+              sub: bestPost ? `${bestPost.likes} likes · ${bestPost.comments} commentaires` : "Aucun post",
             },
             {
               label: "Posts suivis",
@@ -528,13 +551,18 @@ export default function AnalyticsPage() {
             },
             {
               label: "Streak actuel",
-              value: `${streak} jour${streak !== 1 ? "s" : ""}`,
-              sub: "consécutifs avec un post",
+              value: streakDisplay,
+              sub: streak > 0 ? "jours consécutifs avec un post" : "Poste aujourd'hui pour démarrer",
+            },
+            {
+              label: "Reach estimé ce mois",
+              value: estimatedReach >= 1000 ? `${Math.round(estimatedReach / 1000)}k` : estimatedReach.toString(),
+              sub: "estimation basée sur tes likes",
             },
           ].map(({ label, value, sub }) => (
             <div key={label} className="bg-white rounded-xl border border-zinc-100 p-5 shadow-sm">
               <div className="text-xs text-zinc-400 font-medium uppercase tracking-wide mb-2">{label}</div>
-              <div className="text-2xl font-bold text-zinc-900">{value}</div>
+              <div className="text-2xl font-bold text-zinc-900 leading-tight">{value}</div>
               <div className="text-xs text-zinc-400 mt-1 leading-snug">{sub}</div>
             </div>
           ))}
@@ -544,24 +572,21 @@ export default function AnalyticsPage() {
           <>
             {/* Line chart */}
             <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
-              <h2 className="font-semibold text-zinc-900 mb-1">
-                {allEngagementZero ? "Likes par post" : "Évolution de l'engagement"}
-              </h2>
-              {allEngagementZero && (
-                <p className="text-xs text-zinc-400 mb-4">Données de vues non disponibles — affichage des likes</p>
-              )}
+              <h2 className="font-semibold text-zinc-900 mb-1">Score de performance par post</h2>
+              <p className="text-xs text-zinc-400 mb-4">Score 0-100 · likes × 2 + comments × 5 + shares × 3, normalisé sur ton meilleur post</p>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={lineData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} />
                   <YAxis
                     tick={{ fontSize: 11 }} tickLine={false} axisLine={false}
-                    unit={allEngagementZero ? "" : "%"}
+                    domain={[0, 100]} label={{ value: "Score", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 10, fill: "#a1a1aa" } }}
                   />
                   <Tooltip
-                    formatter={(v) => allEngagementZero
-                      ? [`${Number(v ?? 0)} likes`, "Likes"]
-                      : [`${Number(v ?? 0).toFixed(2)}%`, "Engagement"]}
+                    formatter={(v, _n, item) => {
+                      const d = item?.payload;
+                      return [`Score ${v}/100 · ${d?.likes ?? 0} likes · ${d?.comments ?? 0} comments`, ""];
+                    }}
                     labelFormatter={(l) => `Le ${l}`}
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
                   />
@@ -573,14 +598,15 @@ export default function AnalyticsPage() {
             {/* Bar chart */}
             {barData.length > 0 && (
               <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
-                <h2 className="font-semibold text-zinc-900 mb-5">Engagement moyen par format</h2>
+                <h2 className="font-semibold text-zinc-900 mb-1">Score moyen par format</h2>
+                <p className="text-xs text-zinc-400 mb-5">Score 0-100 — plus c'est haut, plus ce format performe pour toi</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={barData} barSize={36}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="format" tick={{ fontSize: 12 }} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} unit="%" />
+                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} domain={[0, 100]} />
                     <Tooltip
-                      formatter={(v) => [`${Number(v ?? 0).toFixed(2)}%`, "Engagement moyen"]}
+                      formatter={(v) => [`${v}/100`, "Score moyen"]}
                       contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
                     />
                     <Bar dataKey="avg" radius={[6, 6, 0, 0]}>
@@ -839,7 +865,7 @@ export default function AnalyticsPage() {
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                 <h3 className="font-semibold text-blue-800 mb-3 text-sm">📅 Meilleur moment pour poster</h3>
                 <p className="text-xl font-bold text-blue-900 capitalize">{analysis.best_day}</p>
-                <p className="text-xs text-blue-600 mt-1">Engagement moyen estimé : {analysis.avg_engagement}%</p>
+                <p className="text-xs text-blue-600 mt-1">Score moyen estimé : {Math.round(analysis.avg_engagement)}/100</p>
               </div>
 
               {/* 3 recommandations */}
@@ -869,7 +895,7 @@ export default function AnalyticsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50">
-                  {["Date", "Contenu", "Format", "Likes", "Comments", "Engagement", "Actions"].map((h) => (
+                  {["Date", "Contenu", "Format", "Likes", "Comments", "Score", "Actions"].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -884,7 +910,18 @@ export default function AnalyticsPage() {
                     </td>
                     <td className="px-4 py-3 text-zinc-700">{p.likes}</td>
                     <td className="px-4 py-3 text-zinc-700">{p.comments}</td>
-                    <td className="px-4 py-3 text-zinc-700">{p.engagement_rate != null ? `${Number(p.engagement_rate).toFixed(2)}%` : "—"}</td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const score = postScores.get(p.id) ?? 0;
+                        const sl = scoreLabel(score);
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-zinc-800 text-sm">{score}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium ${sl.classes}`}>{sl.text}</span>
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3">
                       <button onClick={() => handleDelete(p.id)} className="text-zinc-300 hover:text-red-400 transition-colors">
                         <Trash2 size={15} />

@@ -145,26 +145,26 @@ ${personalPatterns.map((k) => `- [confiance ${(k.confidence_score * 100).toFixed
   }
 
   if (myPosts.length > 0) {
-    const avgLikes = myPosts.reduce((s, p) => s + (p.likes ?? 0), 0) / myPosts.length;
-    const withEngagement = myPosts.filter((p) => (p.engagement_rate ?? 0) > 0);
-    const avgEngagement =
-      withEngagement.length > 0
-        ? withEngagement.reduce((s, p) => s + (p.engagement_rate ?? 0), 0) / withEngagement.length
-        : 0;
-    const topPost = myPosts.reduce((best, p) => (p.likes > best.likes ? p : best), myPosts[0]);
+    // Scoring system : score = (likes×2 + comments×5 + shares×3) / max × 100
+    const rawScores = myPosts.map((p) => (p.likes ?? 0) * 2 + (p.comments ?? 0) * 5 + (p.shares ?? 0) * 3);
+    const maxRaw = Math.max(...rawScores, 1);
+    const scores = rawScores.map((r) => Math.round((r / maxRaw) * 100));
+    const avgScore = Math.round(scores.reduce((s, v) => s + v, 0) / scores.length);
+    const topIdx = scores.indexOf(Math.max(...scores));
+    const topPost = myPosts[topIdx];
 
-    sections.push(`## MES 20 DERNIERS POSTS (statistiques)
+    sections.push(`## MES 20 DERNIERS POSTS (scoring 0-100)
+SYSTÈME DE SCORE : score = (likes×2 + comments×5 + shares×3) normalisé sur le meilleur post = 100
 - Total analysé : ${myPosts.length} posts
-- Moyenne likes : ${avgLikes.toFixed(1)}
-- Engagement moyen : ${avgEngagement.toFixed(2)}%
-- Meilleur post : ${topPost.likes} likes — "${topPost.content.slice(0, 100)}..."
+- Score moyen : ${avgScore}/100
+- Meilleur post : score ${scores[topIdx]}/100 (${topPost.likes} likes, ${topPost.comments} comments) — "${topPost.content.slice(0, 100)}..."
 
-Détail des 10 derniers posts :
+Détail des 10 derniers posts (score/100) :
 ${myPosts
   .slice(0, 10)
   .map(
-    (p) =>
-      `  • [${p.published_at?.slice(0, 10) ?? "?"}] ${p.likes} likes | ${p.comments} comments | format: ${p.format ?? "?"} | hook: ${p.hook_type ?? "?"} — "${p.content.slice(0, 80)}..."`
+    (p, i) =>
+      `  • [${p.published_at?.slice(0, 10) ?? "?"}] score ${scores[i]}/100 | ${p.likes} likes | ${p.comments} comments | format: ${p.format ?? "?"} | hook: ${p.hook_type ?? "?"} — "${p.content.slice(0, 80)}..."`
   )
   .join("\n")}`);
   }
