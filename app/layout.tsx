@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -16,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <body className="flex h-screen overflow-hidden bg-[#0F0F10]">
+    <html lang="fr">
+      <body className="flex h-screen overflow-hidden bg-zinc-50">
         <ToastProvider>
           <Sidebar />
           <main className="flex-1 overflow-y-auto">

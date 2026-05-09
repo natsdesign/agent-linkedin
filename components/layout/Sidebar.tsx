@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, PenSquare, CalendarDays, Settings, DollarSign, BarChart2 } from "lucide-react";
+import { Users, PenSquare, CalendarDays, Zap, Settings, DollarSign, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CostDrawer } from "@/components/layout/CostDrawer";
 
@@ -14,26 +14,9 @@ const CONTENT_NAV = [
 ];
 
 const ME_NAV = [
-  { href: "/analytics",   label: "Mon compte",  icon: BarChart2 },
-  { href: "/onboarding",  label: "Mon profil",  icon: Settings },
+  { href: "/analytics",  label: "Mon compte", icon: BarChart2 },
+  { href: "/onboarding", label: "Mon profil",  icon: Settings },
 ];
-
-function NavItem({ href, label, icon: Icon, active }: { href: string; label: string; icon: React.ElementType; active: boolean }) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] font-[450] transition-all duration-150",
-        active
-          ? "bg-[#0D2B22] text-[#10B981] border-l-2 border-[#10B981] pl-[10px]"
-          : "text-[#8B8B9E] hover:text-[#F0F0F5] hover:bg-[#1A1A1F]"
-      )}
-    >
-      <Icon size={15} className="shrink-0" />
-      {label}
-    </Link>
-  );
-}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -41,72 +24,71 @@ export function Sidebar() {
 
   return (
     <>
-      <aside
-        className="flex flex-col shrink-0 h-screen"
-        style={{
-          width: "220px",
-          background: "#0A0A0F",
-          borderRight: "1px solid #1E1E26",
-        }}
-      >
+      <aside className="flex flex-col w-60 min-h-screen bg-white border-r border-zinc-200 shrink-0">
         {/* Logo */}
-        <div
-          className="flex items-center gap-2 px-4 py-5"
-          style={{ borderBottom: "1px solid #1E1E26" }}
-        >
-          <span
-            className="w-2 h-2 rounded-full animate-pulse-dot shrink-0"
-            style={{ background: "#10B981" }}
-          />
-          <span className="text-[16px] font-bold text-white tracking-tight">
-            Content Agent
-          </span>
+        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-zinc-100">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-500 shadow-sm">
+            <Zap className="w-4 h-4 text-white" fill="currentColor" />
+          </div>
+          <span className="font-semibold text-zinc-900 tracking-tight">Content Agent</span>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-4 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
           {/* Groupe CONTENU */}
-          <p
-            className="label-section px-3 pb-1.5"
-            style={{ marginTop: "8px" }}
-          >
+          <p className="px-3 pb-1.5 text-[11px] font-medium uppercase tracking-widest text-zinc-400">
             Contenu
           </p>
           <div className="space-y-0.5 mb-2">
-            {CONTENT_NAV.map(({ href, label, icon }) => (
-              <NavItem
-                key={href}
-                href={href}
-                label={label}
-                icon={icon}
-                active={pathname.startsWith(href)}
-              />
-            ))}
+            {CONTENT_NAV.map(({ href, label, icon: Icon }) => {
+              const active = pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                    active
+                      ? "bg-brand-50 text-brand-700"
+                      : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+                  )}
+                >
+                  <Icon size={17} className={cn("shrink-0", active ? "text-brand-600" : "text-zinc-400")} />
+                  {label}
+                </Link>
+              );
+            })}
           </div>
 
           {/* Groupe MOI */}
-          <p
-            className="label-section px-3 pb-1.5"
-            style={{ marginTop: "24px" }}
-          >
+          <p className="px-3 pb-1.5 mt-6 text-[11px] font-medium uppercase tracking-widest text-zinc-400">
             Moi
           </p>
           <div className="space-y-0.5">
-            {ME_NAV.map(({ href, label, icon }) => (
-              <NavItem
-                key={href}
-                href={href}
-                label={label}
-                icon={icon}
-                active={pathname.startsWith(href)}
-              />
-            ))}
+            {ME_NAV.map(({ href, label, icon: Icon }) => {
+              const active = pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                    active
+                      ? "bg-brand-50 text-brand-700"
+                      : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+                  )}
+                >
+                  <Icon size={17} className={cn("shrink-0", active ? "text-brand-600" : "text-zinc-400")} />
+                  {label}
+                </Link>
+              );
+            })}
 
             <button
               onClick={() => setCostOpen(true)}
-              className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] font-[450] text-[#8B8B9E] hover:text-[#F0F0F5] hover:bg-[#1A1A1F] transition-all duration-150"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition-all"
             >
-              <DollarSign size={15} className="shrink-0" />
+              <DollarSign size={17} className="text-zinc-400 shrink-0" />
               Coûts
             </button>
           </div>

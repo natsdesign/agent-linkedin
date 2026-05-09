@@ -55,16 +55,16 @@ const FR_MONTHS = [
 const FR_DAYS = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
 type ViewMode = "week" | "month";
 
-const STATUS_CFG: Record<PostStatus, { label: string; bg: string; color: string }> = {
-  draft:     { label: "Brouillon", bg: "#1A1A1F",  color: "#8B8B9E" },
-  validated: { label: "Validé",    bg: "#064E3B",  color: "#10B981" },
-  scheduled: { label: "Planifié",  bg: "#451A03",  color: "#F59E0B" },
-  published: { label: "Publié",    bg: "#0D2B22",  color: "#10B981" },
+const STATUS_CFG: Record<PostStatus, { label: string; dot: string; badge: string }> = {
+  draft:     { label: "Brouillon", dot: "bg-zinc-400",    badge: "text-zinc-600 bg-zinc-100 border-zinc-200" },
+  validated: { label: "Validé",    dot: "bg-brand-500",   badge: "text-brand-700 bg-brand-100 border-brand-200" },
+  scheduled: { label: "Planifié",  dot: "bg-amber-500",   badge: "text-amber-700 bg-amber-100 border-amber-200" },
+  published: { label: "Publié",    dot: "bg-emerald-500", badge: "text-emerald-700 bg-emerald-100 border-emerald-200" },
 };
 
 const FORMAT_DOT: Record<string, string> = {
-  liste: "#60A5FA", storytelling: "#A78BFA",
-  carrousel: "#F59E0B", court: "#10B981", texte: "#8B8B9E",
+  liste: "bg-blue-400", storytelling: "bg-violet-400",
+  carrousel: "bg-amber-400", court: "bg-brand-400", texte: "bg-zinc-400",
 };
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -100,38 +100,28 @@ type CardProps = {
 function DraggablePostCard({ post, onClick, onPublish }: CardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: post.id });
   const cfg = STATUS_CFG[post.status] ?? STATUS_CFG.draft;
-  const dotColor = FORMAT_DOT[post.format ?? "texte"] ?? "#8B8B9E";
 
   return (
     <div
       ref={setNodeRef}
-      className="rounded-lg p-2.5 cursor-grab active:cursor-grabbing select-none transition-all"
-      style={{
-        background: "#1A1A1F",
-        border: `1px solid ${isDragging ? "#2A2A32" : "#2A2A32"}`,
-        opacity: isDragging ? 0.3 : 1,
-      }}
+      className={cn(
+        "rounded-lg border bg-white p-2.5 cursor-grab active:cursor-grabbing select-none transition-all shadow-sm",
+        isDragging ? "opacity-30" : "border-zinc-200 hover:border-zinc-300 hover:shadow-md"
+      )}
       {...attributes}
       {...listeners}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
     >
-      <p className="text-[11px] text-[#F0F0F5] leading-relaxed line-clamp-2">
+      <p className="text-[11px] text-zinc-700 leading-relaxed line-clamp-2">
         {post.content.slice(0, 80)}{post.content.length > 80 ? "…" : ""}
       </p>
       <div className="flex items-center gap-1 mt-1.5 flex-wrap">
         {post.format && (
-          <span
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px]"
-            style={{ background: "#111115", color: "#8B8B9E" }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dotColor }} />
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-zinc-100 text-zinc-500">
             {post.format}
           </span>
         )}
-        <span
-          className="px-1.5 py-0.5 rounded-md text-[10px] font-medium"
-          style={{ background: cfg.bg, color: cfg.color }}
-        >
+        <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium border", cfg.badge)}>
           {cfg.label}
         </span>
       </div>
@@ -139,8 +129,7 @@ function DraggablePostCard({ post, onClick, onPublish }: CardProps) {
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onPublish(); }}
-          className="mt-1.5 w-full flex items-center justify-center gap-1 py-1 rounded text-[10px] font-semibold transition-colors"
-          style={{ background: "#064E3B", color: "#10B981", border: "1px solid #10B981" }}
+          className="mt-1.5 w-full flex items-center justify-center gap-1 py-1 rounded text-[10px] font-semibold text-emerald-600 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors"
         >
           <Check size={10} strokeWidth={3} />
           Marquer publié
@@ -152,16 +141,10 @@ function DraggablePostCard({ post, onClick, onPublish }: CardProps) {
 
 function DragPreview({ post }: { post: GeneratedPost }) {
   return (
-    <div
-      className="w-44 rounded-lg p-2.5 rotate-1"
-      style={{ background: "#1A1A1F", border: "1px solid #10B981", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
-    >
-      <p className="text-[11px] text-[#F0F0F5] line-clamp-2">{post.content.slice(0, 80)}</p>
+    <div className="w-44 rounded-lg border border-brand-400 bg-white p-2.5 shadow-xl rotate-1">
+      <p className="text-[11px] text-zinc-700 line-clamp-2">{post.content.slice(0, 80)}</p>
       {post.format && (
-        <span
-          className="mt-1.5 inline-block px-1.5 py-0.5 rounded-md text-[10px]"
-          style={{ background: "#064E3B", color: "#10B981" }}
-        >
+        <span className="mt-1.5 inline-block px-1.5 py-0.5 rounded-full text-[10px] bg-brand-100 text-brand-700">
           {post.format}
         </span>
       )}
@@ -184,27 +167,17 @@ function DayColumn({
   const dow   = (date.getDay() + 6) % 7;
 
   return (
-    <div
-      className="flex-1 min-w-0 flex flex-col h-full overflow-hidden"
-      style={{ borderRight: "1px solid #2A2A32" }}
-    >
-      <div
-        className="shrink-0 px-2 pt-3 pb-2.5 text-center"
-        style={{
-          borderBottom: "1px solid #2A2A32",
-          background: today ? "#0D2B22" : "transparent",
-          borderTop: today ? "2px solid #10B981" : "none",
-        }}
-      >
-        <p className="text-[10px] font-semibold text-[#55555F] uppercase tracking-wider">{FR_DAYS[dow]}</p>
-        <p className="text-xl font-bold leading-tight" style={{ color: today ? "#10B981" : "#F0F0F5" }}>
+    <div className="flex-1 min-w-0 flex flex-col border-r border-zinc-200 last:border-r-0 h-full overflow-hidden">
+      <div className={cn("shrink-0 px-2 pt-3 pb-2.5 border-b border-zinc-200 text-center", today && "bg-brand-50")}>
+        <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">{FR_DAYS[dow]}</p>
+        <p className={cn("text-xl font-bold leading-tight", today ? "text-brand-600" : "text-zinc-700")}>
           {format(date, "d")}
         </p>
+        {today && <div className="w-1.5 h-1.5 rounded-full bg-brand-500 mx-auto mt-1" />}
       </div>
       <div
         ref={setNodeRef}
-        className="flex-1 overflow-y-auto p-1.5 space-y-1.5 transition-colors min-h-0"
-        style={{ background: isOver ? "#0D2B22" : "transparent" }}
+        className={cn("flex-1 overflow-y-auto p-1.5 space-y-1.5 transition-colors min-h-0", isOver && "bg-brand-50")}
       >
         {posts.map((p) => (
           <DraggablePostCard
@@ -230,23 +203,19 @@ function UnscheduledColumn({
   const { setNodeRef, isOver } = useDroppable({ id: "unscheduled" });
 
   return (
-    <div
-      className="w-48 shrink-0 flex flex-col h-full overflow-hidden"
-      style={{ borderRight: "1px solid #2A2A32", background: "#111115" }}
-    >
-      <div className="shrink-0 px-3 pt-3 pb-2.5" style={{ borderBottom: "1px solid #2A2A32" }}>
-        <p className="text-xs font-semibold text-[#8B8B9E]">Non planifiés</p>
-        <p className="text-[11px] text-[#55555F] mt-0.5">
+    <div className="w-48 shrink-0 flex flex-col border-r border-zinc-200 h-full overflow-hidden bg-zinc-50">
+      <div className="shrink-0 px-3 pt-3 pb-2.5 border-b border-zinc-200">
+        <p className="text-xs font-semibold text-zinc-500">Non planifiés</p>
+        <p className="text-[11px] text-zinc-400 mt-0.5">
           {posts.length} post{posts.length !== 1 ? "s" : ""}
         </p>
       </div>
       <div
         ref={setNodeRef}
-        className="flex-1 overflow-y-auto p-1.5 space-y-1.5 min-h-0 transition-colors"
-        style={{ background: isOver ? "#0D2B22" : "transparent" }}
+        className={cn("flex-1 overflow-y-auto p-1.5 space-y-1.5 min-h-0 transition-colors", isOver && "bg-brand-50")}
       >
         {posts.length === 0 ? (
-          <p className="text-[11px] text-[#55555F] text-center pt-6 px-2 leading-relaxed">
+          <p className="text-[11px] text-zinc-400 text-center pt-6 px-2 leading-relaxed">
             Tous vos posts<br />sont planifiés
           </p>
         ) : (
@@ -278,41 +247,35 @@ function DayCell({
     <div
       ref={setNodeRef}
       onClick={onDayClick}
-      className="min-h-[88px] p-1.5 cursor-pointer transition-colors"
-      style={{
-        borderBottom: "1px solid #2A2A32",
-        borderRight: "1px solid #2A2A32",
-        background: isOver ? "#0D2B22" : isSelected ? "#0D2B22" : !isCurrentMonth ? "#111115" : "transparent",
-        outline: isSelected ? "1px solid #10B981" : "none",
-        outlineOffset: "-1px",
-      }}
+      className={cn(
+        "min-h-[88px] p-1.5 border-b border-r border-zinc-200 cursor-pointer transition-colors",
+        !isCurrentMonth && "bg-zinc-50",
+        isOver && "bg-brand-50",
+        isSelected && "ring-1 ring-inset ring-brand-400 bg-brand-50",
+        "hover:bg-zinc-50"
+      )}
     >
       <span
-        className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium mb-1"
-        style={{
-          background: today ? "#10B981" : "transparent",
-          color: today ? "#0F0F10" : isCurrentMonth ? "#F0F0F5" : "#55555F",
-        }}
+        className={cn(
+          "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium mb-1",
+          today ? "bg-brand-500 text-white" : isCurrentMonth ? "text-zinc-700" : "text-zinc-300"
+        )}
       >
         {format(date, "d")}
       </span>
       <div className="space-y-0.5">
-        {posts.slice(0, 3).map((p) => {
-          const dotColor = FORMAT_DOT[p.format ?? "texte"] ?? "#8B8B9E";
-          return (
-            <div
-              key={p.id}
-              onClick={(e) => { e.stopPropagation(); onPostClick(p); }}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] truncate cursor-pointer transition-colors"
-              style={{ background: "#1A1A1F", color: "#8B8B9E" }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dotColor }} />
-              <span className="truncate">{p.content.slice(0, 20)}</span>
-            </div>
-          );
-        })}
+        {posts.slice(0, 3).map((p) => (
+          <div
+            key={p.id}
+            onClick={(e) => { e.stopPropagation(); onPostClick(p); }}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-zinc-600 bg-zinc-100 hover:bg-zinc-200 truncate transition-colors cursor-pointer"
+          >
+            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", FORMAT_DOT[p.format ?? "texte"] ?? "bg-zinc-400")} />
+            <span className="truncate">{p.content.slice(0, 20)}</span>
+          </div>
+        ))}
         {posts.length > 3 && (
-          <p className="text-[10px] text-[#55555F] px-1">+{posts.length - 3} autres</p>
+          <p className="text-[10px] text-zinc-400 px-1">+{posts.length - 3} autres</p>
         )}
       </div>
     </div>
@@ -330,12 +293,12 @@ function PostDetailModal({
   onDelete: (id: string) => void;
 }) {
   const { showToast } = useToast();
-  const [editing,     setEditing]     = useState(false);
-  const [editContent, setEditContent] = useState(post.content);
-  const [saving,      setSaving]      = useState(false);
-  const [publishing,  setPublishing]  = useState(false);
+  const [editing,       setEditing]       = useState(false);
+  const [editContent,   setEditContent]   = useState(post.content);
+  const [saving,        setSaving]        = useState(false);
+  const [publishing,    setPublishing]    = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [copied,      setCopied]      = useState(false);
+  const [copied,        setCopied]        = useState(false);
   const cfg = STATUS_CFG[post.status] ?? STATUS_CFG.draft;
 
   async function handleCopy() {
@@ -347,9 +310,9 @@ function PostDetailModal({
 
   async function patch(body: Partial<GeneratedPost>) {
     const res = await fetch(`/api/posts/${post.id}`, {
-      method: "PATCH",
+      method:  "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body:    JSON.stringify(body),
     });
     if (res.ok) onUpdate({ ...post, ...body });
   }
@@ -375,41 +338,26 @@ function PostDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.6)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div
-        className="w-full max-w-xl flex flex-col max-h-[85vh]"
-        style={{ background: "#1A1A1F", border: "1px solid #2A2A32", borderRadius: "10px" }}
-      >
+      <div className="bg-white border border-zinc-200 rounded-2xl w-full max-w-xl shadow-xl flex flex-col max-h-[85vh]">
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-4 shrink-0 gap-3"
-          style={{ borderBottom: "1px solid #2A2A32" }}
-        >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0 gap-3">
           <div className="flex items-center gap-2 min-w-0">
             {post.format && (
-              <span
-                className="px-2 py-0.5 rounded-md text-xs shrink-0"
-                style={{ background: "#111115", color: "#8B8B9E" }}
-              >
-                {post.format}
-              </span>
+              <span className="px-2 py-0.5 rounded-full text-xs bg-zinc-100 text-zinc-500 shrink-0">{post.format}</span>
             )}
-            <span
-              className="px-2 py-0.5 rounded-md text-xs font-medium shrink-0"
-              style={{ background: cfg.bg, color: cfg.color }}
-            >
+            <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium border shrink-0", cfg.badge)}>
               {cfg.label}
             </span>
             {post.subject && (
-              <span className="text-sm text-[#55555F] truncate">{post.subject}</span>
+              <span className="text-sm text-zinc-400 truncate">{post.subject}</span>
             )}
           </div>
           <button
             onClick={onClose}
-            className="shrink-0 p-1.5 rounded-lg text-[#55555F] hover:text-[#F0F0F5] hover:bg-[#222228] transition-colors"
+            className="shrink-0 p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
           >
             <X size={16} />
           </button>
@@ -418,12 +366,9 @@ function PostDetailModal({
         {/* Body */}
         <div className="overflow-y-auto px-5 py-4 space-y-3 flex-1">
           {post.hook && (
-            <div
-              className="p-3 rounded-lg"
-              style={{ background: "#0D2B22", borderLeft: "3px solid #10B981" }}
-            >
-              <p className="label-section mb-1">Accroche</p>
-              <p className="text-sm text-[#F0F0F5]">{post.hook}</p>
+            <div className="p-3 bg-brand-50 border border-brand-100 rounded-lg">
+              <p className="text-[10px] uppercase tracking-wider text-brand-600 font-semibold mb-1">Accroche</p>
+              <p className="text-sm text-zinc-700">{post.hook}</p>
             </div>
           )}
 
@@ -433,48 +378,36 @@ function PostDetailModal({
               onChange={(e) => setEditContent(e.target.value)}
               rows={10}
               autoFocus
-              className="w-full rounded-lg p-3.5 text-sm text-[#F0F0F5] leading-relaxed resize-none focus:outline-none transition-all"
-              style={{
-                background: "#111115",
-                border: "1px solid #10B981",
-              }}
+              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3.5 text-sm text-zinc-900 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-all"
             />
           ) : (
-            <div
-              className="p-3.5 rounded-lg"
-              style={{ background: "#111115", border: "1px solid #2A2A32" }}
-            >
-              <p className="text-sm text-[#F0F0F5] leading-relaxed whitespace-pre-wrap">{post.content}</p>
+            <div className="p-3.5 bg-zinc-50 border border-zinc-100 rounded-xl">
+              <p className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">{post.content}</p>
             </div>
           )}
 
           {post.cta && (
-            <div
-              className="p-3 rounded-lg"
-              style={{ background: "#222228", border: "1px solid #2A2A32" }}
-            >
-              <p className="label-section mb-1">CTA</p>
-              <p className="text-sm text-[#8B8B9E]">{post.cta}</p>
+            <div className="p-3 bg-zinc-100 border border-zinc-200 rounded-lg">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold mb-1">CTA</p>
+              <p className="text-sm text-zinc-600">{post.cta}</p>
             </div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="px-5 py-4 shrink-0" style={{ borderTop: "1px solid #2A2A32" }}>
+        <div className="px-5 py-4 border-t border-zinc-100 shrink-0">
           {editing ? (
             <div className="flex gap-2">
               <button
                 onClick={() => { setEditing(false); setEditContent(post.content); }}
-                className="flex-1 py-2.5 rounded-lg text-sm font-medium text-[#8B8B9E] transition-all"
-                style={{ border: "1px solid #2A2A32" }}
+                className="flex-1 py-2.5 rounded-lg text-sm font-medium text-zinc-500 border border-zinc-200 hover:bg-zinc-50 transition-all"
               >
                 Annuler
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-60"
-                style={{ background: "#10B981", color: "#0F0F10" }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white disabled:opacity-60 transition-all"
               >
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 Sauvegarder
@@ -484,18 +417,16 @@ function PostDetailModal({
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setEditing(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[#8B8B9E] hover:text-[#F0F0F5] transition-all"
-                style={{ border: "1px solid #2A2A32" }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 border border-zinc-200 hover:text-zinc-800 hover:border-zinc-300 hover:bg-zinc-50 transition-all"
               >
-                <Edit2 size={13} />
+                <Edit2 size={14} />
                 Modifier
               </button>
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[#8B8B9E] hover:text-[#F0F0F5] transition-all"
-                style={{ border: "1px solid #2A2A32" }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 border border-zinc-200 hover:text-zinc-800 hover:border-zinc-300 hover:bg-zinc-50 transition-all"
               >
-                <Copy size={13} />
+                <Copy size={14} />
                 {copied ? "Copié !" : "Copier"}
               </button>
 
@@ -503,10 +434,9 @@ function PostDetailModal({
                 <button
                   onClick={handlePublish}
                   disabled={publishing}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-60"
-                  style={{ background: "#064E3B", color: "#10B981", border: "1px solid #10B981" }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-emerald-600 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-60 transition-all"
                 >
-                  {publishing ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  {publishing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                   Marquer comme publié
                 </button>
               )}
@@ -515,15 +445,13 @@ function PostDetailModal({
                 <div className="flex gap-2 ml-auto">
                   <button
                     onClick={() => setConfirmDelete(false)}
-                    className="px-3 py-2 rounded-lg text-sm text-[#8B8B9E] transition-all"
-                    style={{ border: "1px solid #2A2A32" }}
+                    className="px-3 py-2 rounded-lg text-sm text-zinc-500 border border-zinc-200 hover:bg-zinc-50 transition-all"
                   >
                     Annuler
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="px-3 py-2 rounded-lg text-sm font-semibold transition-all"
-                    style={{ background: "#450A0A", color: "#EF4444", border: "1px solid #EF4444" }}
+                    className="px-3 py-2 rounded-lg text-sm font-semibold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 transition-all"
                   >
                     Confirmer
                   </button>
@@ -531,9 +459,9 @@ function PostDetailModal({
               ) : (
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  className="ml-auto p-2 rounded-lg text-[#55555F] hover:text-[#EF4444] transition-all"
+                  className="ml-auto p-2 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all"
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={16} />
                 </button>
               )}
             </div>
@@ -549,13 +477,13 @@ function PostDetailModal({
 export default function CalendarPage() {
   const { showToast } = useToast();
   const today = new Date();
-  const [view,         setView]         = useState<ViewMode>("week");
-  const [refDate,      setRefDate]      = useState(today);
-  const [posts,        setPosts]        = useState<GeneratedPost[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [selectedPost, setSelectedPost] = useState<GeneratedPost | null>(null);
-  const [selectedDay,  setSelectedDay]  = useState<Date | null>(null);
+  const [view,          setView]          = useState<ViewMode>("week");
+  const [refDate,       setRefDate]       = useState(today);
+  const [posts,         setPosts]         = useState<GeneratedPost[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [activeDragId,  setActiveDragId]  = useState<string | null>(null);
+  const [selectedPost,  setSelectedPost]  = useState<GeneratedPost | null>(null);
+  const [selectedDay,   setSelectedDay]   = useState<Date | null>(null);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -568,9 +496,9 @@ export default function CalendarPage() {
       .then((data) => { setPosts(data); setLoading(false); });
   }, []);
 
-  const goPrev  = () => setRefDate((d) => view === "week" ? subWeeks(d, 1) : subMonths(d, 1));
-  const goNext  = () => setRefDate((d) => view === "week" ? addWeeks(d, 1) : addMonths(d, 1));
-  const goToday = () => setRefDate(today);
+  const goPrev   = () => setRefDate((d) => view === "week" ? subWeeks(d, 1) : subMonths(d, 1));
+  const goNext   = () => setRefDate((d) => view === "week" ? addWeeks(d, 1) : addMonths(d, 1));
+  const goToday  = () => setRefDate(today);
 
   function updatePost(updated: GeneratedPost) {
     setPosts((prev) => prev.map((p) => p.id === updated.id ? updated : p));
@@ -584,9 +512,9 @@ export default function CalendarPage() {
   function applyPatch(id: string, patch: Partial<GeneratedPost>) {
     setPosts((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p));
     fetch(`/api/posts/${id}`, {
-      method: "PATCH",
+      method:  "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
+      body:    JSON.stringify(patch),
     });
   }
 
@@ -611,7 +539,7 @@ export default function CalendarPage() {
     return posts.filter((p) => p.scheduled_date && isSameDay(new Date(p.scheduled_date), date));
   }
 
-  const unscheduled    = posts.filter((p) => !p.scheduled_date && p.status !== "published");
+  const unscheduled   = posts.filter((p) => !p.scheduled_date && p.status !== "published");
   const activeDragPost = activeDragId ? posts.find((p) => p.id === activeDragId) : null;
 
   const days      = weekDays(refDate);
@@ -620,64 +548,43 @@ export default function CalendarPage() {
   const grid      = monthGrid(refDate);
 
   return (
-    <div className="flex flex-col h-screen" style={{ background: "#0F0F10" }}>
+    <div className="flex flex-col h-screen bg-white">
       {/* ── Header ── */}
-      <div
-        className="flex items-center justify-between px-8 py-4 shrink-0"
-        style={{ borderBottom: "1px solid #2A2A32", background: "#0A0A0F" }}
-      >
+      <div className="flex items-center justify-between px-8 py-4 border-b border-zinc-200 shrink-0">
         <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "#0D2B22", border: "1px solid #064E3B" }}
-          >
-            <CalendarDays size={15} className="text-[#10B981]" />
+          <div className="w-9 h-9 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center">
+            <CalendarDays size={17} className="text-brand-600" />
           </div>
           <div>
-            <h1 className="font-semibold text-[#F0F0F5] text-sm">Calendrier éditorial</h1>
-            <p className="text-xs text-[#55555F]">{view === "week" ? weekTitle : monthTitle}</p>
+            <h1 className="font-semibold text-zinc-900 text-sm">Calendrier éditorial</h1>
+            <p className="text-xs text-zinc-400">{view === "week" ? weekTitle : monthTitle}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Nav buttons */}
-          <div
-            className="flex items-center rounded-lg overflow-hidden"
-            style={{ border: "1px solid #2A2A32" }}
-          >
-            <button
-              onClick={goPrev}
-              className="p-2 text-[#8B8B9E] hover:text-[#F0F0F5] hover:bg-[#1A1A1F] transition-colors"
-            >
-              <ChevronLeft size={14} />
+          <div className="flex items-center border border-zinc-200 rounded-lg overflow-hidden">
+            <button onClick={goPrev} className="p-2 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-900 transition-colors">
+              <ChevronLeft size={15} />
             </button>
-            <button
-              onClick={goToday}
-              className="px-3 py-1.5 text-xs font-medium text-[#8B8B9E] hover:text-[#F0F0F5] hover:bg-[#1A1A1F] transition-colors"
-              style={{ borderLeft: "1px solid #2A2A32", borderRight: "1px solid #2A2A32" }}
-            >
+            <button onClick={goToday} className="px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 border-x border-zinc-200 transition-colors">
               Aujourd&apos;hui
             </button>
-            <button
-              onClick={goNext}
-              className="p-2 text-[#8B8B9E] hover:text-[#F0F0F5] hover:bg-[#1A1A1F] transition-colors"
-            >
-              <ChevronRight size={14} />
+            <button onClick={goNext} className="p-2 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-900 transition-colors">
+              <ChevronRight size={15} />
             </button>
           </div>
 
           {/* View toggle */}
-          <div className="flex rounded-lg p-0.5" style={{ background: "#111115", border: "1px solid #2A2A32" }}>
+          <div className="flex bg-zinc-100 rounded-lg p-0.5">
             {(["week", "month"] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => { setView(v); setSelectedDay(null); }}
-                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
-                style={
-                  view === v
-                    ? { background: "#1A1A1F", color: "#F0F0F5" }
-                    : { color: "#55555F" }
-                }
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                  view === v ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                )}
               >
                 {v === "week" ? "Semaine" : "Mois"}
               </button>
@@ -686,10 +593,9 @@ export default function CalendarPage() {
 
           <Link
             href="/create"
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all active:scale-[0.98]"
-            style={{ background: "#10B981", color: "#0F0F10" }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-lg transition-all active:scale-[0.98]"
           >
-            <Plus size={12} />
+            <Plus size={13} />
             Créer
           </Link>
         </div>
@@ -699,26 +605,22 @@ export default function CalendarPage() {
       <div className="flex-1 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 size={22} className="animate-spin text-[#10B981]" />
+            <Loader2 size={22} className="animate-spin text-brand-500" />
           </div>
         ) : posts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
-            <div
-              className="w-12 h-12 rounded-[10px] flex items-center justify-center"
-              style={{ background: "#1A1A1F", border: "1px solid #2A2A32" }}
-            >
-              <CalendarDays size={20} className="text-[#55555F]" />
+            <div className="w-14 h-14 rounded-2xl bg-zinc-100 border border-zinc-200 flex items-center justify-center">
+              <CalendarDays size={24} className="text-zinc-400" />
             </div>
             <div>
-              <p className="text-[#F0F0F5] font-medium text-sm mb-1.5">Aucun post à planifier</p>
-              <p className="text-[#55555F] text-xs leading-relaxed max-w-xs">
+              <p className="text-zinc-700 font-medium text-sm mb-1.5">Aucun post à planifier</p>
+              <p className="text-zinc-400 text-xs leading-relaxed max-w-xs">
                 Validez des posts dans Créer pour les voir apparaître ici
               </p>
             </div>
             <Link
               href="/create"
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all active:scale-[0.98]"
-              style={{ background: "#10B981", color: "#0F0F10" }}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-lg transition-all active:scale-[0.98]"
             >
               <Plus size={14} />
               Créer des posts
@@ -745,16 +647,9 @@ export default function CalendarPage() {
               <div className="flex h-full overflow-hidden">
                 <div className="flex-1 overflow-y-auto">
                   {/* Day-of-week headers */}
-                  <div
-                    className="grid grid-cols-7 sticky top-0 z-10"
-                    style={{ borderBottom: "1px solid #2A2A32", background: "#0A0A0F" }}
-                  >
+                  <div className="grid grid-cols-7 border-b border-zinc-200 sticky top-0 bg-white z-10">
                     {FR_DAYS.map((d) => (
-                      <div
-                        key={d}
-                        className="py-2.5 text-xs font-semibold text-[#55555F] uppercase tracking-wider text-center"
-                        style={{ borderRight: "1px solid #2A2A32" }}
-                      >
+                      <div key={d} className="py-2.5 text-xs font-semibold text-zinc-400 uppercase tracking-wider text-center border-r border-zinc-200 last:border-r-0">
                         {d}
                       </div>
                     ))}
@@ -782,22 +677,16 @@ export default function CalendarPage() {
 
                 {/* Day side panel */}
                 {selectedDay && (
-                  <div
-                    className="w-72 shrink-0 flex flex-col h-full overflow-hidden"
-                    style={{ borderLeft: "1px solid #2A2A32", background: "#111115" }}
-                  >
-                    <div
-                      className="flex items-center justify-between px-4 py-3 shrink-0"
-                      style={{ borderBottom: "1px solid #2A2A32" }}
-                    >
-                      <p className="text-sm font-semibold text-[#F0F0F5]">
+                  <div className="w-72 shrink-0 border-l border-zinc-200 flex flex-col h-full overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 shrink-0">
+                      <p className="text-sm font-semibold text-zinc-900">
                         {FR_DAYS[(selectedDay.getDay() + 6) % 7]}{" "}
                         {format(selectedDay, "d")}{" "}
                         {FR_MONTHS[selectedDay.getMonth()]}
                       </p>
                       <button
                         onClick={() => setSelectedDay(null)}
-                        className="p-1 rounded-md text-[#55555F] hover:text-[#F0F0F5] hover:bg-[#1A1A1F] transition-colors"
+                        className="p-1 rounded-md text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
                       >
                         <X size={14} />
                       </button>
@@ -805,7 +694,7 @@ export default function CalendarPage() {
 
                     <div className="flex-1 overflow-y-auto p-3 space-y-2">
                       {postsForDay(selectedDay).length === 0 ? (
-                        <p className="text-xs text-[#55555F] text-center pt-8 leading-relaxed">
+                        <p className="text-xs text-zinc-400 text-center pt-8 leading-relaxed">
                           Aucun post<br />planifié ce jour
                         </p>
                       ) : (
@@ -815,26 +704,17 @@ export default function CalendarPage() {
                             <button
                               key={p.id}
                               onClick={() => setSelectedPost(p)}
-                              className="w-full text-left p-3 rounded-lg transition-all"
-                              style={{ background: "#1A1A1F", border: "1px solid #2A2A32" }}
+                              className="w-full text-left p-3 bg-white border border-zinc-200 rounded-lg hover:border-zinc-300 hover:shadow-sm transition-all"
                             >
                               <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                                 {p.format && (
-                                  <span
-                                    className="px-1.5 py-0.5 rounded-md text-[10px]"
-                                    style={{ background: "#111115", color: "#8B8B9E" }}
-                                  >
-                                    {p.format}
-                                  </span>
+                                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-zinc-100 text-zinc-500">{p.format}</span>
                                 )}
-                                <span
-                                  className="px-1.5 py-0.5 rounded-md text-[10px] font-medium"
-                                  style={{ background: cfg.bg, color: cfg.color }}
-                                >
+                                <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium border", cfg.badge)}>
                                   {cfg.label}
                                 </span>
                               </div>
-                              <p className="text-xs text-[#8B8B9E] leading-relaxed line-clamp-3">
+                              <p className="text-xs text-zinc-600 leading-relaxed line-clamp-3">
                                 {p.content.slice(0, 120)}
                               </p>
                             </button>
