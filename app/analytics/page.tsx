@@ -297,10 +297,22 @@ export default function AnalyticsPage() {
   }
 
   // ── KPIs ──
+  const noViews = posts.every((p) => !p.views || p.views === 0);
+  const allEngagementZero = posts.every((p) => !p.engagement_rate || p.engagement_rate === 0);
+
   const postsWithEngagement = posts.filter((p) => (p.engagement_rate ?? 0) > 0);
-  const avgEngagement = postsWithEngagement.length > 0
-    ? postsWithEngagement.reduce((s, p) => s + (p.engagement_rate ?? 0), 0) / postsWithEngagement.length
-    : 0;
+  const avgEngagement = (() => {
+    if (postsWithEngagement.length > 0) {
+      return postsWithEngagement.reduce((s, p) => s + (p.engagement_rate ?? 0), 0) / postsWithEngagement.length;
+    }
+    // Fallback: avg likes as proxy (likes / 100)
+    const withLikes = posts.filter((p) => p.likes > 0);
+    if (withLikes.length > 0) {
+      return withLikes.reduce((s, p) => s + p.likes, 0) / withLikes.length / 100;
+    }
+    return 0;
+  })();
+
   const bestPost = posts.reduce<MyPost | null>((best, p) => (!best || p.likes > best.likes ? p : best), null);
 
   const postDays = new Set(posts.map((p) => p.published_at?.slice(0, 10)).filter(Boolean));
@@ -314,10 +326,15 @@ export default function AnalyticsPage() {
   }
 
   // ── Chart data ──
+  // If all engagement_rate are 0/null, fall back to showing likes over time
   const lineData = posts
-    .filter((p) => p.published_at && p.engagement_rate != null)
+    .filter((p) => p.published_at)
     .sort((a, b) => (a.published_at! > b.published_at! ? 1 : -1))
-    .map((p) => ({ date: p.published_at!.slice(0, 10), engagement: Number((p.engagement_rate ?? 0).toFixed(2)) }));
+    .slice(-30)
+    .map((p) => ({
+      date:  p.published_at!.slice(0, 10),
+      value: allEngagementZero ? p.likes : Number((p.engagement_rate ?? 0).toFixed(2)),
+    }));
 
   const formatMap: Record<string, { total: number; count: number }> = {};
   posts.forEach((p) => {
@@ -441,10 +458,30 @@ export default function AnalyticsPage() {
         {/* KPI cards */}
         <div className="grid grid-cols-4 gap-4">
           {[
-            { label: "Engagement moyen", value: `${avgEngagement.toFixed(2)}%`, sub: `sur ${postsWithEngagement.length} posts avec vues` },
-            { label: "Meilleur post", value: bestPost ? `${bestPost.likes} likes` : "—", sub: bestPost?.content.slice(0, 40) + (bestPost ? "…" : "") },
-            { label: "Posts suivis", value: posts.length.toString(), sub: "dans ta bibliothèque" },
-            { label: "Streak actuel", value: `${streak} jour${streak !== 1 ? "s" : ""}`, sub: "consécutifs avec un post" },
+            {
+              label: "Engagement moyen",
+              value: noViews && allEngagementZero
+                ? `${avgEngagement.toFixed(2)}%`
+                : `${avgEngagement.toFixed(2)}%`,
+              sub: noViews && allEngagementZero
+                ? "(basé sur likes+comments)"
+                : `sur ${postsWithEngagement.length} posts avec vues`,
+            },
+            {
+              label: "Meilleur post",
+              value: bestPost ? `${bestPost.likes} likes` : "—",
+              sub: bestPost ? bestPost.content.slice(0, 40) + "…" : "Aucun post",
+            },
+            {
+              label: "Posts suivis",
+              value: posts.length.toString(),
+              sub: "dans ta bibliothèque",
+            },
+            {
+              label: "Streak actuel",
+              value: `${streak} jour${streak !== 1 ? "s" : ""}`,
+              sub: "consécutifs avec un post",
+            },
           ].map(({ label, value, sub }) => (
             <div key={label} className="bg-white rounded-xl border border-zinc-100 p-5 shadow-sm">
               <div className="text-xs text-zinc-400 font-medium uppercase tracking-wide mb-2">{label}</div>
@@ -458,18 +495,28 @@ export default function AnalyticsPage() {
           <>
             {/* Line chart */}
             <div className="bg-white rounded-xl border border-zinc-100 p-6 shadow-sm">
-              <h2 className="font-semibold text-zinc-900 mb-5">Évolution de l'engagement</h2>
+              <h2 className="font-semibold text-zinc-900 mb-1">
+                {allEngagementZero ? "Likes par post" : "Évolution de l'engagement"}
+              </h2>
+              {allEngagementZero && (
+                <p className="text-xs text-zinc-400 mb-4">Données de vues non disponibles — affichage des likes</p>
+              )}
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={lineData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} unit="%" />
+                  <YAxis
+                    tick={{ fontSize: 11 }} tickLine={false} axisLine={false}
+                    unit={allEngagementZero ? "" : "%"}
+                  />
                   <Tooltip
-                    formatter={(v) => [`${Number(v ?? 0).toFixed(2)}%`, "Engagement"]}
+                    formatter={(v) => allEngagementZero
+                      ? [`${Number(v ?? 0)} likes`, "Likes"]
+                      : [`${Number(v ?? 0).toFixed(2)}%`, "Engagement"]}
                     labelFormatter={(l) => `Le ${l}`}
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
                   />
-                  <Line type="monotone" dataKey="engagement" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: "#10b981" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: "#10b981" }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -520,47 +567,63 @@ export default function AnalyticsPage() {
           </div>
 
           {analysis ? (
-            <div className="space-y-5">
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  { label: "Meilleur jour", value: analysis.best_day },
-                  { label: "Meilleur format", value: analysis.best_format },
-                  { label: "Meilleur hook", value: analysis.best_hook },
-                  { label: "Engagement moyen IA", value: `${analysis.avg_engagement}%` },
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-emerald-50 border border-emerald-100 rounded-lg p-4">
-                    <div className="text-xs text-emerald-600 font-medium mb-1">{label}</div>
-                    <div className="font-semibold text-zinc-900 capitalize">{value}</div>
-                  </div>
-                ))}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Ce qui marche */}
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                <h3 className="font-semibold text-emerald-800 mb-3 text-sm">💪 Ce qui marche</h3>
+                <div className="space-y-1.5 text-sm">
+                  <p className="text-emerald-700">Format : <strong className="capitalize">{analysis.best_format}</strong></p>
+                  <p className="text-emerald-700">Hook : <strong className="capitalize">{analysis.best_hook}</strong></p>
+                </div>
+                {analysis.insights.slice(0, Math.ceil(analysis.insights.length / 2)).length > 0 && (
+                  <ul className="mt-3 space-y-1.5">
+                    {analysis.insights.slice(0, Math.ceil(analysis.insights.length / 2)).map((ins, i) => (
+                      <li key={i} className="text-xs text-emerald-700 flex items-start gap-1.5">
+                        <span className="shrink-0 mt-0.5">✓</span>{ins}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-700 mb-3">Observations</h3>
-                  <ul className="space-y-2">
-                    {analysis.insights.map((ins, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-zinc-600">
-                        <span className="mt-0.5 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                        {ins}
+
+              {/* Ce qui ne marche pas */}
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                <h3 className="font-semibold text-amber-800 mb-3 text-sm">⚠️ Points d&apos;amélioration</h3>
+                {analysis.insights.slice(Math.ceil(analysis.insights.length / 2)).length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {analysis.insights.slice(Math.ceil(analysis.insights.length / 2)).map((ins, i) => (
+                      <li key={i} className="text-xs text-amber-700 flex items-start gap-1.5">
+                        <span className="shrink-0 mt-0.5">•</span>{ins}
                       </li>
                     ))}
                   </ul>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-700 mb-3">Recommandations</h3>
-                  <ul className="space-y-2">
-                    {analysis.recommendations.map((rec, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-zinc-600">
-                        <span className="mt-0.5 text-emerald-500">→</span>
-                        {rec}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                ) : (
+                  <p className="text-xs text-amber-600">Continue à analyser plus de posts pour voir les points faibles.</p>
+                )}
+              </div>
+
+              {/* Meilleur moment */}
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                <h3 className="font-semibold text-blue-800 mb-3 text-sm">📅 Meilleur moment pour poster</h3>
+                <p className="text-xl font-bold text-blue-900 capitalize">{analysis.best_day}</p>
+                <p className="text-xs text-blue-600 mt-1">Engagement moyen estimé : {analysis.avg_engagement}%</p>
+              </div>
+
+              {/* 3 recommandations */}
+              <div className="bg-brand-50 border border-brand-100 rounded-xl p-4">
+                <h3 className="font-semibold text-brand-800 mb-3 text-sm">💡 3 recommandations concrètes</h3>
+                <ul className="space-y-2">
+                  {analysis.recommendations.slice(0, 3).map((rec, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-brand-700">
+                      <span className="font-bold shrink-0 mt-0.5">{i + 1}.</span>
+                      {rec}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-zinc-400">Lance l'analyse pour obtenir des recommandations personnalisées basées sur tes posts.</p>
+            <p className="text-sm text-zinc-400">Lance l&apos;analyse pour obtenir des recommandations personnalisées basées sur tes posts.</p>
           )}
         </div>
 

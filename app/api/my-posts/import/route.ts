@@ -74,7 +74,11 @@ export async function POST(req: NextRequest) {
   const rows = newPosts.map((p, i) => {
     const a = analyses[i];
     const engagement_rate =
-      p.views > 0 ? ((p.likes + p.comments) / p.views) * 100 : null;
+      p.views > 0
+        ? ((p.likes + p.comments) / p.views) * 100
+        : p.likes > 0
+        ? p.likes / 100
+        : 0;
     return {
       content:         p.content,
       published_at:    p.publishedAt,
