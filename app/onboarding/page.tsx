@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Zap, Send, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -123,7 +123,7 @@ type Phase = "chat" | "generating" | "done" | "edit";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editAccountId = searchParams.get("accountId");
@@ -389,5 +389,13 @@ export default function OnboardingPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense>
+      <OnboardingContent />
+    </Suspense>
   );
 }
