@@ -107,29 +107,47 @@ export function CreatorCard({ creator, onDelete, onScrapeDone }: Props) {
   useEffect(() => {
     if (!runId) return;
 
-    const timer = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/creators/${creator.id}/scrape-status?runId=${runId}`);
-        if (!res.ok) { setScraping(false); setRunId(null); return; }
+    let polling = true;
 
-        const data: { done: boolean; count?: number } = await res.json();
-        if (data.done) {
-          const statusRes = await fetch(`/api/creators/${creator.id}/status`);
-          if (statusRes.ok) {
-            const status: { last_scraped_at: string | null; post_count: number; avatar_url: string | null } = await statusRes.json();
-            setLocal({ last_scraped_at: status.last_scraped_at, post_count: status.post_count, avatar_url: status.avatar_url });
-            onScrapeDone?.({ last_scraped_at: status.last_scraped_at, post_count: status.post_count, avatar_url: status.avatar_url });
+    async function poll() {
+      while (polling) {
+        await new Promise((r) => setTimeout(r, 5000));
+        if (!polling) break;
+
+        try {
+          const res = await fetch(`/api/creators/${creator.id}/scrape-status?runId=${runId}`);
+
+          if (!res.ok) {
+            showToast("Erreur scraping — réessaie.");
+            setScraping(false);
+            setRunId(null);
+            return;
           }
-          showToast(`Scraping terminé — ${data.count ?? 0} nouveau${(data.count ?? 0) !== 1 ? "x" : ""} post${(data.count ?? 0) !== 1 ? "s" : ""}`);
-          setScraping(false);
-          setRunId(null);
-        }
-      } catch {
-        // ignore poll errors
-      }
-    }, 5000);
 
-    return () => clearInterval(timer);
+          const data: { done: boolean; count?: number } = await res.json();
+
+          if (data.done) {
+            polling = false;
+            const statusRes = await fetch(`/api/creators/${creator.id}/status`);
+            if (statusRes.ok) {
+              const status: { last_scraped_at: string | null; post_count: number; avatar_url: string | null } =
+                await statusRes.json();
+              setLocal(status);
+              onScrapeDone?.(status);
+            }
+            showToast(`Scraping terminé — ${data.count ?? 0} nouveau${(data.count ?? 0) !== 1 ? "x" : ""} post${(data.count ?? 0) !== 1 ? "s" : ""}`);
+            setScraping(false);
+            setRunId(null);
+            return;
+          }
+        } catch {
+          // transient network error — keep polling
+        }
+      }
+    }
+
+    poll();
+    return () => { polling = false; };
   }, [runId, creator.id]);
 
   async function handleScrape() {

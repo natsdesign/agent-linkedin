@@ -59,42 +59,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     (p) => !p.postUrl || !existingUrls.has(p.postUrl)
   );
 
-  if (newPosts.length === 0) {
-    await supabase
-      .from("creators")
-      .update({
-        last_scraped_at: new Date().toISOString(),
-        ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
-      })
-      .eq("id", params.id);
-    return NextResponse.json({ done: true, count: 0 });
-  }
-
-  // Analyze with Claude Haiku (parallel — usage logged inside analyzePost)
-  const analyses = await Promise.all(
-    newPosts.map((p) => analyzePost(p.content).catch(() => null))
-  );
-
-  // Batch insert
-  const rows = newPosts.map((p, i) => {
-    const a = analyses[i];
-    return {
-      creator_id:   params.id,
-      account_id:   accountId,
-      content:      p.content,
-      published_at: p.publishedAt,
-      likes:        p.likes,
-      comments:     p.comments,
-      shares:       p.shares,
-      post_url:     p.postUrl,
-      hook_type:    a?.hook_type ?? null,
-      format:       a?.format ?? null,
-      themes:       a?.themes ?? [],
-    };
-  });
-
-  await supabase.from("scraped_posts").insert(rows);
-
+  // Update creator regardless
   await supabase
     .from("creators")
     .update({
@@ -103,14 +68,65 @@ export async function GET(req: NextRequest, { params }: Params) {
     })
     .eq("id", params.id);
 
-  // Update apify run with actual posts count (fire and forget)
+  if (newPosts.length === 0) {
+    return NextResponse.json({ done: true, count: 0 });
+  }
+
+  // ── Fast path: insert raw posts immediately (no Claude) ──────────────────────
+  // Claude analysis happens in background to avoid Vercel timeout
+
+  const rows = newPosts.map((p) => ({
+    creator_id:   params.id,
+    account_id:   accountId,
+    content:      p.content,
+    published_at: p.publishedAt,
+    likes:        p.likes,
+    comments:     p.comments,
+    shares:       p.shares,
+    post_url:     p.postUrl,
+    hook_type:    null,
+    format:       null,
+    themes:       [],
+  }));
+
+  const { data: inserted } = await supabase
+    .from("scraped_posts")
+    .insert(rows)
+    .select("id, content");
+
+  // Update apify run cost (fire-and-forget)
   void supabase
     .from("apify_runs")
     .update({ posts_scraped: newPosts.length })
     .eq("run_id", runId);
 
-  // Non-blocking insights refresh
-  refreshInsights().catch(console.error);
+  // ── Background: analyze + update + refresh insights ──────────────────────────
+  // Intentionally not awaited — runs after response is sent
+  void (async () => {
+    if (!inserted || inserted.length === 0) return;
+    try {
+      await Promise.all(
+        inserted.map(async (row) => {
+          try {
+            const analysis = await analyzePost(row.content);
+            await supabase
+              .from("scraped_posts")
+              .update({
+                hook_type: analysis.hook_type,
+                format:    analysis.format,
+                themes:    analysis.themes,
+              })
+              .eq("id", row.id);
+          } catch {
+            // individual analysis failure is non-critical
+          }
+        })
+      );
+    } catch {
+      // ignore
+    }
+    refreshInsights().catch(() => {});
+  })();
 
   return NextResponse.json({ done: true, count: newPosts.length });
 }
