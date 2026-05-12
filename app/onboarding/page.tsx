@@ -17,8 +17,7 @@ type Step = {
 const PERSONAL_STEPS: Step[] = [
   {
     id: "account_type",
-    message:
-      "Bonjour ! Je suis ton agent de contenu LinkedIn. Pour créer du contenu qui te ressemble vraiment, j'ai besoin de te connaître.\n\nC'est pour ton compte personnel ou tu gères des comptes clients ?",
+    message: "Bonjour ! Je suis ton agent de contenu LinkedIn. Pour créer du contenu qui te ressemble vraiment, j'ai besoin de te connaître.\n\nC'est pour ton compte personnel ou tu gères des comptes clients ?",
     type: "buttons",
     options: ["Mon compte", "Comptes clients"],
   },
@@ -36,12 +35,7 @@ const PERSONAL_STEPS: Step[] = [
     id: "style",
     message: "Quel est ton style naturel ? Tu es plutôt...",
     type: "buttons",
-    options: [
-      "Expert qui éduque",
-      "Entrepreneur qui partage son parcours",
-      "Créatif qui inspire",
-      "Consultant direct",
-    ],
+    options: ["Expert qui éduque", "Entrepreneur qui partage son parcours", "Créatif qui inspire", "Consultant direct"],
   },
   {
     id: "goal",
@@ -57,8 +51,7 @@ const PERSONAL_STEPS: Step[] = [
   },
   {
     id: "example",
-    message:
-      "Dernière question — donne-moi un exemple de post que tu as fait ou que tu aimerais faire. Même une idée vague.",
+    message: "Dernière question — donne-moi un exemple de post que tu as fait ou que tu aimerais faire. Même une idée vague.",
     type: "textarea",
   },
 ];
@@ -66,15 +59,13 @@ const PERSONAL_STEPS: Step[] = [
 const CLIENT_STEPS: Step[] = [
   {
     id: "account_type",
-    message:
-      "Bonjour ! Je suis ton agent de contenu LinkedIn. Pour créer du contenu qui te ressemble vraiment, j'ai besoin de te connaître.\n\nC'est pour ton compte personnel ou tu gères des comptes clients ?",
+    message: "Bonjour ! Je suis ton agent de contenu LinkedIn. Pour créer du contenu qui te ressemble vraiment, j'ai besoin de te connaître.\n\nC'est pour ton compte personnel ou tu gères des comptes clients ?",
     type: "buttons",
     options: ["Mon compte", "Comptes clients"],
   },
   {
     id: "client_name",
-    message:
-      "Super, tu vas pouvoir gérer plusieurs comptes depuis un seul endroit. Commençons par ton premier client. C'est qui ?",
+    message: "Super, tu vas pouvoir gérer plusieurs comptes depuis un seul endroit. Commençons par ton premier client. C'est qui ?",
     type: "text",
   },
   {
@@ -91,12 +82,7 @@ const CLIENT_STEPS: Step[] = [
     id: "style",
     message: "Comment il parle ? Son style naturel ?",
     type: "buttons",
-    options: [
-      "Expert qui éduque",
-      "Entrepreneur qui partage son parcours",
-      "Créatif qui inspire",
-      "Consultant direct",
-    ],
+    options: ["Expert qui éduque", "Entrepreneur qui partage son parcours", "Créatif qui inspire", "Consultant direct"],
   },
   {
     id: "goal",
@@ -106,19 +92,14 @@ const CLIENT_STEPS: Step[] = [
   },
   {
     id: "example",
-    message:
-      "Un exemple de contenu qu'il a déjà posté ou qui lui ressemble ?",
+    message: "Un exemple de contenu qu'il a déjà posté ou qui lui ressemble ?",
     type: "textarea",
   },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Message = {
-  role: "agent" | "user";
-  text: string;
-};
-
+type Message = { role: "agent" | "user"; text: string };
 type Phase = "chat" | "generating" | "done" | "edit";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -128,19 +109,18 @@ function OnboardingContent() {
   const searchParams = useSearchParams();
   const editAccountId = searchParams.get("accountId");
 
-  const [phase, setPhase] = useState<Phase>("chat");
-  const [steps, setSteps] = useState<Step[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [phase,            setPhase]            = useState<Phase>("chat");
+  const [steps,            setSteps]            = useState<Step[]>([]);
+  const [messages,         setMessages]         = useState<Message[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [answers, setAnswers] = useState<string[]>([]);
-  const [inputValue, setInputValue] = useState("");
+  const [answers,          setAnswers]          = useState<string[]>([]);
+  const [inputValue,       setInputValue]       = useState("");
   const [generatedAccount, setGeneratedAccount] = useState<{ id: string; name: string } | null>(null);
-  const [summary, setSummary] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [summary,          setSummary]          = useState<string[]>([]);
+  const [error,            setError]            = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Start with the first question
     const initialSteps = PERSONAL_STEPS;
     setSteps(initialSteps);
     setMessages([{ role: "agent", text: initialSteps[0].message }]);
@@ -165,11 +145,9 @@ function OnboardingContent() {
     const newAnswers = [...answers, answer];
     setAnswers(newAnswers);
 
-    // If this was the account_type question, switch step list
     if (currentStep.id === "account_type") {
       const nextSteps = answer === "Comptes clients" ? CLIENT_STEPS : PERSONAL_STEPS;
       setSteps(nextSteps);
-      // Move to next step in the new list (index 1)
       const nextStep = nextSteps[1];
       setTimeout(() => {
         addAgentMessage(nextStep.message);
@@ -186,7 +164,6 @@ function OnboardingContent() {
         setInputValue("");
       }, 300);
     } else {
-      // All questions answered — generate profile
       setTimeout(() => generateProfile(newAnswers), 300);
     }
   }
@@ -206,10 +183,7 @@ function OnboardingContent() {
       const res = await fetch("/api/onboarding/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          answers: allAnswers,
-          accountId: editAccountId ?? undefined,
-        }),
+        body: JSON.stringify({ answers: allAnswers, accountId: editAccountId ?? undefined }),
       });
 
       if (!res.ok) {
@@ -219,7 +193,6 @@ function OnboardingContent() {
 
       const { account, summary: sum } = await res.json();
 
-      // Set active account cookie
       await fetch("/api/accounts/active", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -244,13 +217,13 @@ function OnboardingContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start py-10 px-4" style={{ background: "#0F0F10" }}>
+    <div className="min-h-screen flex flex-col items-center justify-start py-10 px-4 bg-zinc-50">
       {/* Header */}
       <div className="flex flex-col items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-brand-500 shadow-lg">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-brand-500 shadow-sm">
           <Zap size={18} className="text-white" fill="currentColor" />
         </div>
-        <p className="text-zinc-500 text-sm">Configurer un compte</p>
+        <p className="text-zinc-400 text-sm">Configurer un compte</p>
       </div>
 
       {/* Chat window */}
@@ -261,14 +234,9 @@ function OnboardingContent() {
             className={cn(
               "max-w-[88%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-line",
               msg.role === "agent"
-                ? "self-start border-l-2 border-emerald-500 text-zinc-200"
-                : "self-end text-zinc-100 ml-auto"
+                ? "self-start bg-white border border-zinc-200 border-l-2 border-l-brand-400 text-zinc-700 shadow-sm"
+                : "self-end bg-brand-500 text-white ml-auto"
             )}
-            style={
-              msg.role === "agent"
-                ? { background: "#1A1A1F" }
-                : { background: "#0D2B22" }
-            }
           >
             {msg.text}
           </div>
@@ -276,22 +244,22 @@ function OnboardingContent() {
 
         {/* Generating indicator */}
         {phase === "generating" && (
-          <div className="self-start flex items-center gap-2 px-4 py-3 rounded-2xl text-sm text-zinc-400" style={{ background: "#1A1A1F" }}>
-            <Loader2 size={14} className="animate-spin text-emerald-500" />
+          <div className="self-start flex items-center gap-2 px-4 py-3 rounded-2xl text-sm text-zinc-500 bg-white border border-zinc-200 shadow-sm">
+            <Loader2 size={14} className="animate-spin text-brand-500" />
             Analyse en cours...
           </div>
         )}
 
         {/* Done state */}
         {phase === "done" && generatedAccount && (
-          <div className="self-start px-4 py-4 rounded-2xl text-sm text-zinc-200 w-full" style={{ background: "#1A1A1F", borderLeft: "2px solid #10b981" }}>
-            <p className="text-emerald-400 font-medium mb-3">
+          <div className="self-start px-4 py-4 rounded-2xl text-sm text-zinc-700 w-full bg-white border border-zinc-200 border-l-2 border-l-brand-400 shadow-sm">
+            <p className="text-brand-500 font-medium mb-3">
               Ton profil est prêt ! Voici ce que j'ai compris de toi :
             </p>
             <ul className="space-y-2">
               {summary.map((point, i) => (
-                <li key={i} className="flex items-start gap-2 text-zinc-300">
-                  <span className="text-emerald-500 mt-0.5 shrink-0">•</span>
+                <li key={i} className="flex items-start gap-2 text-zinc-600">
+                  <span className="text-brand-500 mt-0.5 shrink-0">•</span>
                   {point}
                 </li>
               ))}
@@ -299,14 +267,14 @@ function OnboardingContent() {
             <div className="flex gap-3 mt-5">
               <button
                 onClick={() => router.push("/inspirations")}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-all"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-500 hover:bg-brand-600 text-white transition-all"
               >
                 C'est parfait, on y va
                 <ArrowRight size={14} />
               </button>
               <button
                 onClick={handleEdit}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 transition-all"
+                className="px-4 py-2 rounded-xl text-sm font-medium text-zinc-500 hover:text-zinc-700 border border-zinc-200 hover:border-zinc-300 transition-all"
               >
                 Modifier quelque chose
               </button>
@@ -315,7 +283,7 @@ function OnboardingContent() {
         )}
 
         {error && (
-          <div className="self-start px-4 py-3 rounded-2xl text-sm text-red-400" style={{ background: "#1A1A1F" }}>
+          <div className="self-start px-4 py-3 rounded-2xl text-sm text-red-600 bg-red-50 border border-red-200">
             {error}
           </div>
         )}
@@ -332,8 +300,7 @@ function OnboardingContent() {
                 <button
                   key={opt}
                   onClick={() => handleAnswer(opt)}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-zinc-200 border border-zinc-700 hover:border-emerald-500 hover:text-emerald-400 transition-all"
-                  style={{ background: "#1A1A1F" }}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-zinc-700 bg-white border border-zinc-200 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50 transition-all shadow-sm"
                 >
                   {opt}
                 </button>
@@ -350,14 +317,12 @@ function OnboardingContent() {
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleTextSubmit()}
                 placeholder="Tape ta réponse..."
-                className="flex-1 px-4 py-2.5 rounded-xl text-sm text-zinc-100 placeholder-zinc-600 outline-none border border-zinc-700 focus:border-emerald-500 transition-all"
-                style={{ background: "#1A1A1F" }}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm text-zinc-800 placeholder-zinc-400 bg-white outline-none border border-zinc-200 focus:border-brand-400 focus:ring-1 focus:ring-brand-200 transition-all shadow-sm"
               />
               <button
                 onClick={handleTextSubmit}
                 disabled={!inputValue.trim()}
-                className="px-3 py-2.5 rounded-xl text-zinc-400 hover:text-emerald-400 border border-zinc-700 hover:border-emerald-500 transition-all disabled:opacity-40"
-                style={{ background: "#1A1A1F" }}
+                className="px-3 py-2.5 rounded-xl text-zinc-400 hover:text-brand-500 bg-white border border-zinc-200 hover:border-brand-300 transition-all disabled:opacity-40 shadow-sm"
               >
                 <Send size={16} />
               </button>
@@ -372,14 +337,12 @@ function OnboardingContent() {
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Tape ta réponse..."
                 rows={4}
-                className="w-full px-4 py-3 rounded-xl text-sm text-zinc-100 placeholder-zinc-600 outline-none border border-zinc-700 focus:border-emerald-500 transition-all resize-none leading-relaxed"
-                style={{ background: "#1A1A1F" }}
+                className="w-full px-4 py-3 rounded-xl text-sm text-zinc-800 placeholder-zinc-400 bg-white outline-none border border-zinc-200 focus:border-brand-400 focus:ring-1 focus:ring-brand-200 transition-all resize-none leading-relaxed shadow-sm"
               />
               <button
                 onClick={handleTextSubmit}
                 disabled={!inputValue.trim()}
-                className="self-end flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-zinc-200 border border-zinc-700 hover:border-emerald-500 hover:text-emerald-400 transition-all disabled:opacity-40"
-                style={{ background: "#1A1A1F" }}
+                className="self-end flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-zinc-600 bg-white border border-zinc-200 hover:border-brand-300 hover:text-brand-600 transition-all disabled:opacity-40 shadow-sm"
               >
                 Envoyer
                 <Send size={14} />
