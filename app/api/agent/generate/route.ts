@@ -54,7 +54,7 @@ function buildUserPrompt(
   context: string,
   angle: Angle,
   topPosts: Array<{ content: string }>,
-  insights: { best_hooks?: Array<{ value: string }>; best_formats?: Array<{ value: string }> }
+  insights: { best_hooks?: Array<{ value: string }>; best_formats?: Array<{ value: string }>; best_themes?: Array<{ value: string }> }
 ): string {
   const parts: string[] = [];
 
@@ -71,6 +71,9 @@ function buildUserPrompt(
   }
   if (insights.best_formats?.length) {
     parts.push(`Formats performants : ${insights.best_formats.map((f) => f.value).join(", ")}`);
+  }
+  if (insights.best_themes?.length) {
+    parts.push(`Thèmes qui résonnent : ${insights.best_themes.map((t) => t.value).join(", ")}`);
   }
   if (parts.length > 0) parts.push("");
 
@@ -101,7 +104,7 @@ export async function POST(req: NextRequest) {
   // Fetch profile, insights, top 3 my_posts in parallel
   const [accountRes, insightsRes, topPostsRes] = await Promise.all([
     supabase.from("accounts").select("*").eq("id", accountId).maybeSingle(),
-    supabase.from("insights").select("best_hooks,best_formats").eq("account_id", accountId).maybeSingle(),
+    supabase.from("insights").select("best_hooks,best_formats,best_themes").eq("account_id", accountId).maybeSingle(),
     supabase
       .from("my_posts")
       .select("content,likes,comments,shares")
@@ -132,7 +135,7 @@ export async function POST(req: NextRequest) {
           messages: [
             {
               role: "user",
-              content: buildUserPrompt(context, angle, topPosts, insights as { best_hooks?: Array<{ value: string }>; best_formats?: Array<{ value: string }> }),
+              content: buildUserPrompt(context, angle, topPosts, insights as { best_hooks?: Array<{ value: string }>; best_formats?: Array<{ value: string }>; best_themes?: Array<{ value: string }> }),
             },
           ],
         })
