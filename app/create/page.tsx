@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ChevronRight, Copy, RefreshCw, CheckCircle2, Pencil, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Loader2, ChevronRight, Copy, RefreshCw, CheckCircle2, Pencil, ArrowLeft, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import type { GeneratedPost } from "@/types";
@@ -94,6 +95,115 @@ function AutoTextarea({
         className
       )}
     />
+  );
+}
+
+// ─── Recent creations ─────────────────────────────────────────────────────────
+
+type RecentPost = {
+  id: string;
+  content: string;
+  subject?: string | null;
+  format?: string | null;
+  created_at: string;
+};
+
+function RecentCreations() {
+  const { showToast } = useToast();
+  const [open,  setOpen]  = useState(false);
+  const [posts, setPosts] = useState<RecentPost[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!open || loaded) return;
+    fetch("/api/agent/recent")
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => { setPosts(d); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, [open, loaded]);
+
+  async function handleCopy(content: string) {
+    await navigator.clipboard.writeText(content);
+    showToast("Post copié !");
+  }
+
+  return (
+    <div className="w-full max-w-[680px] mt-10">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 rounded-[10px] border transition-all"
+        style={{ background: "#111115", borderColor: "#2A2A32", color: "#8B8B9E" }}
+      >
+        <span className="text-[12px] font-medium uppercase tracking-wider" style={{ color: "#55555F" }}>
+          Créations récentes
+        </span>
+        <ChevronDown
+          size={14}
+          className={cn("transition-transform duration-200", open && "rotate-180")}
+        />
+      </button>
+
+      {open && (
+        <div
+          className="mt-2 rounded-[10px] border overflow-hidden"
+          style={{ background: "#111115", borderColor: "#2A2A32" }}
+        >
+          {!loaded ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={16} className="animate-spin" style={{ color: "#55555F" }} />
+            </div>
+          ) : posts.length === 0 ? (
+            <p className="text-center py-8 text-[13px]" style={{ color: "#55555F" }}>
+              Aucune création récente
+            </p>
+          ) : (
+            <div className="divide-y" style={{ borderColor: "#1E1E26" }}>
+              {posts.map((p) => (
+                <div key={p.id} className="px-4 py-3 flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] mb-1" style={{ color: "#55555F" }}>
+                      {new Date(p.created_at).toLocaleDateString("fr-FR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "2-digit",
+                      })}
+                      {p.format && (
+                        <span
+                          className="ml-2 px-1.5 py-0.5 rounded-full text-[10px]"
+                          style={{ background: "#1A1A1F", color: "#8B8B9E", border: "1px solid #2A2A32" }}
+                        >
+                          {p.format}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[13px] leading-snug line-clamp-2" style={{ color: "#8B8B9E" }}>
+                      {p.content}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1.5 shrink-0">
+                    <button
+                      onClick={() => handleCopy(p.content)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-[6px] text-[11px] font-medium border transition-all hover:opacity-80"
+                      style={{ background: "transparent", borderColor: "#2A2A32", color: "#8B8B9E" }}
+                    >
+                      <Copy size={11} />
+                      Recopier
+                    </button>
+                    <Link
+                      href="/calendar"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-[6px] text-[11px] font-medium text-center transition-all hover:opacity-80"
+                      style={{ color: "#10B981" }}
+                    >
+                      Calendrier →
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -233,6 +343,8 @@ function ContextPhase({
           Trouver mes angles
           <ChevronRight size={16} />
         </button>
+
+        <RecentCreations />
       </div>
     </div>
   );
