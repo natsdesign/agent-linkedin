@@ -18,6 +18,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
+  const accountId = await getActiveAccountId();
   const body = await req.json();
 
   const { content, published_at, likes, comments, shares, views, post_url } = body;

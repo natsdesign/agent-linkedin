@@ -53,7 +53,7 @@ Retourne un JSON avec cette structure exacte :
   "recommendations": ["string","string","string"]
 }`,
       },
-    ]));
+    ]}));
   } catch (err) {
     if (err instanceof Error && err.message === "BUDGET_EXCEEDED") {
       return NextResponse.json(
