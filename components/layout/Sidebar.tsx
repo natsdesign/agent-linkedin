@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Users, PenSquare, CalendarDays, Zap, Settings,
   DollarSign, BarChart2, ChevronDown, Plus, Check,
@@ -121,7 +121,6 @@ function CreateAccountModal({ onClose, onCreate }: { onClose: () => void; onCrea
 }
 
 function AccountSwitcher() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -153,7 +152,7 @@ function AccountSwitcher() {
     });
     setActiveId(id);
     setOpen(false);
-    router.refresh();
+    window.location.reload();
   }
 
   function handleCreated(account: Account) {
