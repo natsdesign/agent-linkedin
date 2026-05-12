@@ -1,150 +1,419 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-  type KeyboardEvent,
-} from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Zap,
-  Send,
-  Loader2,
-  CheckCircle2,
-  RefreshCw,
-  ChevronRight,
-  Copy,
-} from "lucide-react";
+import { Loader2, ChevronRight, Copy, RefreshCw, CheckCircle2, Pencil, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import type { GeneratedPost } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = "loading" | "chat" | "generating" | "posts";
-type Step  = 1 | 2 | 3 | "done";
+type Phase = "loading" | "context" | "angles" | "generating" | "posts";
 
-type ChatMessage = {
-  id: string;
-  from: "agent" | "user";
-  text: string;
-  suggestions?: string[];
-};
-
-type AgentContext = {
-  question: string;
-  suggestions: string[];
-  toneSuggestions: string[];
-  formatSuggestions: string[];
-  defaultTone: string;
-  defaultCount: number;
-};
-
-type Answers = {
-  subjects: string;
-  tone: string;
-  count: number;
-  format: string;
+type Angle = {
+  type: "storytelling" | "liste" | "opinion" | "question";
+  emoji: string;
+  titre: string;
+  description: string;
+  hook_preview: string;
 };
 
 type PostState = GeneratedPost & {
+  angle?: Angle;
   regenerating: boolean;
   validating: boolean;
+  copied: boolean;
+};
+
+type InspirationQ = {
+  emoji: string;
+  label: string;
+  followup: string;
+};
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const INSPIRATION_QUESTIONS: InspirationQ[] = [
+  { emoji: "💬", label: "Tu as eu une conversation marquante ?", followup: "Décris-moi cette conversation en 2-3 phrases. Qu'est-ce qui t'a le plus marqué ?" },
+  { emoji: "❌", label: "Tu as fait une erreur cette semaine ?", followup: "Décris-moi cette erreur en 2-3 phrases. Qu'est-ce qui s'est passé exactement ?" },
+  { emoji: "💡", label: "Tu as appris quelque chose ?", followup: "Qu'est-ce que tu as appris ? D'où vient cette leçon ?" },
+  { emoji: "🚫", label: "Tu as refusé quelque chose ?", followup: "Qu'est-ce que tu as refusé et pourquoi ? Qu'est-ce que ça dit de tes valeurs ?" },
+  { emoji: "🔄", label: "Il y a un conseil que tu répètes souvent ?", followup: "Quel est ce conseil ? À qui le donnes-tu habituellement et dans quel contexte ?" },
+];
+
+const ANGLE_TYPE_COLORS: Record<string, string> = {
+  storytelling: "#10B981",
+  liste:        "#60A5FA",
+  opinion:      "#F59E0B",
+  question:     "#A78BFA",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function parseQ3(text: string): { count: number; format: string } {
-  const countMatch = text.match(/\b(\d+)\b/);
-  const count  = countMatch ? Math.min(10, Math.max(1, parseInt(countMatch[1], 10))) : 5;
-  const formats = ["liste", "storytelling", "carrousel", "court", "texte"];
-  const format = formats.find((f) => text.toLowerCase().includes(f)) ?? "texte";
-  return { count, format };
-}
-
-function uid() {
-  return Math.random().toString(36).slice(2);
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function ThinkingDots() {
-  return (
-    <div className="flex items-center gap-1 px-4 py-3">
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="w-2 h-2 bg-brand-400 rounded-full animate-bounce"
-          style={{ animationDelay: `${i * 140}ms` }}
-        />
-      ))}
-    </div>
-  );
+function charCountColor(len: number): string {
+  if (len >= 800 && len <= 1500) return "#10B981";
+  if (len > 0) return "#F59E0B";
+  return "#55555F";
 }
 
 function AutoTextarea({
   value,
   onChange,
+  placeholder,
+  minHeight = 120,
   className,
+  autoFocus,
 }: {
   value: string;
   onChange: (v: string) => void;
+  placeholder?: string;
+  minHeight?: number;
   className?: string;
+  autoFocus?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
-
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
+    el.style.height = `${Math.max(minHeight, el.scrollHeight)}px`;
+  }, [value, minHeight]);
 
   return (
     <textarea
       ref={ref}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={className}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
       rows={1}
+      style={{ minHeight }}
+      className={cn(
+        "w-full resize-none bg-transparent text-[14px] leading-relaxed text-[#F0F0F5] placeholder-[#55555F] focus:outline-none",
+        className
+      )}
     />
   );
 }
 
+// ─── Phase 1: Context ─────────────────────────────────────────────────────────
+
+function ContextPhase({
+  onSubmit,
+}: {
+  onSubmit: (ctx: string) => void;
+}) {
+  const [context, setContext]               = useState("");
+  const [activeQ, setActiveQ]               = useState<InspirationQ | null>(null);
+  const [miniAnswer, setMiniAnswer]         = useState("");
+
+  const canSubmit = context.trim().length >= 20;
+
+  function handleInspirationClick(q: InspirationQ) {
+    setActiveQ(q);
+    setMiniAnswer("");
+  }
+
+  function handleMiniSubmit() {
+    if (!activeQ || !miniAnswer.trim()) return;
+    const merged = context.trim()
+      ? `${context.trim()}\n\n${activeQ.label.replace(" ?", "")} : ${miniAnswer.trim()}`
+      : `${activeQ.label.replace(" ?", "")} : ${miniAnswer.trim()}`;
+    setContext(merged);
+    setActiveQ(null);
+    setMiniAnswer("");
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center py-12 px-4" style={{ background: "#0F0F10" }}>
+      <div className="w-full max-w-[680px]">
+        {/* Breadcrumb */}
+        <p className="text-[11px] font-medium uppercase tracking-widest mb-8" style={{ color: "#55555F" }}>
+          Créer&nbsp;→&nbsp;<span style={{ color: "#10B981" }}>Contexte</span>
+        </p>
+
+        <h1 className="text-[24px] font-semibold tracking-tight mb-2" style={{ color: "#F0F0F5" }}>
+          Qu'est-ce qui s'est passé cette semaine ?
+        </h1>
+        <p className="text-[14px] mb-8 leading-relaxed" style={{ color: "#8B8B9E" }}>
+          Raconte-moi un moment, une réflexion, une victoire ou un échec dans ton business.
+        </p>
+
+        {/* Main textarea */}
+        <div
+          className="rounded-[10px] border p-4 mb-6 transition-all"
+          style={{ background: "#111115", borderColor: context.trim().length >= 20 ? "#10B981" : "#2A2A32" }}
+        >
+          <AutoTextarea
+            value={context}
+            onChange={setContext}
+            minHeight={140}
+            autoFocus
+            placeholder={`Ex: J'ai perdu un client cette semaine parce que mon devis était trop détaillé. Ça m'a fait réaliser que les clients achètent la confiance, pas les livrables...`}
+          />
+          {context.trim().length > 0 && (
+            <p className="text-right text-[11px] mt-2" style={{ color: "#55555F" }}>
+              {context.trim().length} car.
+            </p>
+          )}
+        </div>
+
+        {/* Inspiration block — shown when textarea is nearly empty */}
+        {context.trim().length < 20 && (
+          <div className="mb-6">
+            <p className="text-[12px] font-medium mb-3" style={{ color: "#55555F" }}>
+              Tu manques d'inspiration ?
+            </p>
+            <div className="flex flex-col gap-2">
+              {INSPIRATION_QUESTIONS.map((q) => (
+                <button
+                  key={q.label}
+                  onClick={() => handleInspirationClick(q)}
+                  className="text-left px-4 py-2.5 rounded-[8px] text-[13px] border transition-all"
+                  style={{
+                    background: activeQ?.label === q.label ? "#0D2B22" : "#1A1A1F",
+                    borderColor: activeQ?.label === q.label ? "#10B981" : "#2A2A32",
+                    color: activeQ?.label === q.label ? "#10B981" : "#8B8B9E",
+                  }}
+                >
+                  {q.emoji} {q.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Mini-chat when question selected */}
+            {activeQ && (
+              <div
+                className="mt-4 rounded-[10px] border p-4"
+                style={{ background: "#0D2B22", borderColor: "#10B981" }}
+              >
+                <p className="text-[13px] mb-3 leading-relaxed" style={{ color: "#F0F0F5" }}>
+                  {activeQ.followup}
+                </p>
+                <textarea
+                  autoFocus
+                  value={miniAnswer}
+                  onChange={(e) => setMiniAnswer(e.target.value)}
+                  placeholder="Ta réponse..."
+                  rows={3}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && miniAnswer.trim()) { e.preventDefault(); handleMiniSubmit(); }}}
+                  className="w-full resize-none bg-transparent text-[13px] leading-relaxed placeholder-[#55555F] focus:outline-none mb-3"
+                  style={{ color: "#F0F0F5" }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleMiniSubmit}
+                    disabled={!miniAnswer.trim()}
+                    className="px-3 py-1.5 rounded-[6px] text-[12px] font-semibold transition-all disabled:opacity-40"
+                    style={{ background: "#10B981", color: "#0F0F10" }}
+                  >
+                    Ajouter au contexte →
+                  </button>
+                  <button
+                    onClick={() => setActiveQ(null)}
+                    className="px-3 py-1.5 rounded-[6px] text-[12px] transition-all"
+                    style={{ color: "#55555F" }}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Submit button */}
+        <button
+          onClick={() => canSubmit && onSubmit(context.trim())}
+          disabled={!canSubmit}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-[8px] text-[13px] font-semibold transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ background: "#10B981", color: "#0F0F10" }}
+        >
+          Trouver mes angles
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Phase 2: Angles ──────────────────────────────────────────────────────────
+
+function AnglesPhase({
+  context,
+  angles,
+  loading,
+  onEdit,
+  onGenerate,
+}: {
+  context: string;
+  angles: Angle[];
+  loading: boolean;
+  onEdit: () => void;
+  onGenerate: (selected: Angle[]) => void;
+}) {
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  function toggle(i: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
+  }
+
+  const selectedAngles = angles.filter((_, i) => selected.has(i));
+  const canGenerate = selected.size > 0;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center py-12 px-4" style={{ background: "#0F0F10" }}>
+      <div className="w-full max-w-[680px]">
+        {/* Breadcrumb */}
+        <p className="text-[11px] font-medium uppercase tracking-widest mb-8" style={{ color: "#55555F" }}>
+          Créer&nbsp;→&nbsp;Contexte&nbsp;→&nbsp;<span style={{ color: "#10B981" }}>Angles</span>
+        </p>
+
+        {/* Context summary */}
+        <div
+          className="flex items-start gap-3 rounded-[8px] border px-4 py-3 mb-8"
+          style={{ background: "#1A1A1F", borderColor: "#2A2A32" }}
+        >
+          <p className="flex-1 text-[13px] leading-snug line-clamp-2" style={{ color: "#8B8B9E" }}>
+            {context}
+          </p>
+          <button
+            onClick={onEdit}
+            className="flex items-center gap-1 text-[12px] shrink-0 transition-all hover:opacity-80"
+            style={{ color: "#10B981" }}
+          >
+            <Pencil size={12} />
+            Modifier
+          </button>
+        </div>
+
+        <h2 className="text-[18px] font-semibold mb-1" style={{ color: "#F0F0F5" }}>
+          Choisis tes angles
+        </h2>
+        <p className="text-[13px] mb-6" style={{ color: "#8B8B9E" }}>
+          Sélectionne les angles que tu veux développer en posts.
+        </p>
+
+        {loading ? (
+          <div className="flex flex-col items-center gap-4 py-16">
+            <Loader2 size={20} className="animate-spin" style={{ color: "#10B981" }} />
+            <p className="text-[13px]" style={{ color: "#8B8B9E" }}>Analyse du contexte…</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 mb-8">
+            {angles.map((angle, i) => {
+              const isSelected = selected.has(i);
+              const color = ANGLE_TYPE_COLORS[angle.type] ?? "#10B981";
+              return (
+                <button
+                  key={i}
+                  onClick={() => toggle(i)}
+                  className="text-left rounded-[10px] border p-4 transition-all"
+                  style={{
+                    background: isSelected ? "#0D1F19" : "#1A1A1F",
+                    borderColor: isSelected ? color : "#2A2A32",
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox */}
+                    <div
+                      className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all"
+                      style={{
+                        borderColor: isSelected ? color : "#55555F",
+                        background: isSelected ? color : "transparent",
+                      }}
+                    >
+                      {isSelected && <CheckCircle2 size={10} style={{ color: "#0F0F10" }} />}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      {/* Type badge */}
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[16px]">{angle.emoji}</span>
+                        <span
+                          className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                          style={{ background: `${color}20`, color }}
+                        >
+                          {angle.type}
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <p className="text-[14px] font-semibold mb-1" style={{ color: "#F0F0F5" }}>
+                        {angle.titre}
+                      </p>
+
+                      {/* Description */}
+                      <p className="text-[12px] mb-2 leading-snug" style={{ color: "#8B8B9E" }}>
+                        {angle.description}
+                      </p>
+
+                      {/* Hook preview */}
+                      <p className="text-[12px] italic" style={{ color: "#10B981" }}>
+                        « {angle.hook_preview} »
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <button
+          onClick={() => canGenerate && onGenerate(selectedAngles)}
+          disabled={!canGenerate || loading}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-[8px] text-[13px] font-semibold transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ background: "#10B981", color: "#0F0F10" }}
+        >
+          Générer {selected.size > 0 ? `${selected.size} post${selected.size > 1 ? "s" : ""}` : "les posts"}
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Phase 3: Posts ───────────────────────────────────────────────────────────
+
 function PostCard({
   post,
-  answers,
+  context,
   onUpdate,
 }: {
   post: PostState;
-  answers: Partial<Answers>;
-  onUpdate: (updated: Partial<PostState>) => void;
+  context: string;
+  onUpdate: (p: Partial<PostState>) => void;
 }) {
   const { showToast } = useToast();
   const [content, setContent] = useState(post.content);
-  const [copied, setCopied] = useState(false);
   const validated = post.status === "validated";
+  const angle = post.angle;
+  const color = angle ? ANGLE_TYPE_COLORS[angle.type] ?? "#10B981" : "#10B981";
 
   async function handleCopy() {
     await navigator.clipboard.writeText(content);
-    setCopied(true);
+    onUpdate({ copied: true });
     showToast("Post copié !");
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => onUpdate({ copied: false }), 2000);
   }
 
   async function handleValidate() {
     if (validated || post.validating) return;
     onUpdate({ validating: true });
     const res = await fetch(`/api/posts/${post.id}`, {
-      method:  "PATCH",
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ status: "validated" }),
+      body: JSON.stringify({ status: "validated" }),
     });
     if (res.ok) {
       onUpdate({ status: "validated", validating: false });
-      showToast("Post validé");
+      showToast("Post validé ✓");
     } else {
       onUpdate({ validating: false });
     }
@@ -154,13 +423,12 @@ function PostCard({
     if (post.regenerating) return;
     onUpdate({ regenerating: true });
     const res = await fetch("/api/agent/regenerate", {
-      method:  "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({
-        post_id:  post.id,
-        subjects: answers.subjects ?? "",
-        tone:     answers.tone ?? "inspirant",
-        format:   post.format ?? answers.format ?? "texte",
+      body: JSON.stringify({
+        post_id: post.id,
+        context,
+        angle: post.angle,
       }),
     });
     if (res.ok) {
@@ -172,84 +440,112 @@ function PostCard({
     }
   }
 
+  const charLen = content.length;
+
   return (
     <div
-      className={cn(
-        "card flex flex-col transition-all duration-300",
-        validated && "border-brand-200 bg-brand-50/30"
-      )}
+      className="rounded-[10px] border flex flex-col transition-all"
+      style={{
+        background: "#1A1A1F",
+        borderColor: validated ? "#10B981" : "#2A2A32",
+      }}
     >
-      {/* Badges */}
-      <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-zinc-100">
+      {/* Header */}
+      <div
+        className="flex items-center gap-2 px-4 py-3 border-b"
+        style={{ borderColor: "#2A2A32" }}
+      >
+        {angle && (
+          <>
+            <span className="text-[14px]">{angle.emoji}</span>
+            <span
+              className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full"
+              style={{ background: `${color}20`, color }}
+            >
+              {angle.type}
+            </span>
+          </>
+        )}
         {post.format && (
-          <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-brand-100 text-brand-700 border border-brand-200">
+          <span
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+            style={{ background: "#111115", color: "#8B8B9E", border: "1px solid #2A2A32" }}
+          >
             {post.format}
           </span>
         )}
-        {post.subject && (
-          <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-zinc-100 text-zinc-500">
-            {post.subject}
-          </span>
-        )}
         {validated && (
-          <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-brand-600">
+          <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold" style={{ color: "#10B981" }}>
             <CheckCircle2 size={12} />
             Validé
           </span>
         )}
       </div>
 
-      {/* Editable content */}
+      {/* Content */}
       <div className="relative px-4 py-3 flex-1">
         {post.regenerating && (
-          <div className="absolute inset-0 bg-white/80 rounded-b-xl flex items-center justify-center backdrop-blur-sm z-10">
-            <div className="flex items-center gap-2 text-brand-600">
-              <Loader2 size={15} className="animate-spin" />
-              <span className="text-xs font-medium">Régénération…</span>
+          <div
+            className="absolute inset-0 flex items-center justify-center rounded-b-none z-10"
+            style={{ background: "rgba(26,26,31,0.9)" }}
+          >
+            <div className="flex items-center gap-2 text-[13px]" style={{ color: "#10B981" }}>
+              <Loader2 size={14} className="animate-spin" />
+              Régénération…
             </div>
           </div>
         )}
         <AutoTextarea
           value={content}
-          onChange={(v) => {
-            setContent(v);
-            onUpdate({ content: v });
-          }}
-          className="w-full bg-transparent text-sm text-zinc-700 leading-relaxed resize-none focus:outline-none placeholder-zinc-400"
+          onChange={(v) => { setContent(v); onUpdate({ content: v }); }}
+          minHeight={160}
+          className="text-[13px] leading-relaxed"
         />
+        <p
+          className="text-right text-[11px] mt-1 font-mono"
+          style={{ color: charCountColor(charLen) }}
+        >
+          {charLen} car. {charLen >= 800 && charLen <= 1500 ? "✓" : charLen > 1500 ? "→ trop long" : ""}
+        </p>
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 px-4 pb-4 pt-1">
+      <div
+        className="flex gap-2 px-4 py-3 border-t"
+        style={{ borderColor: "#2A2A32" }}
+      >
         <button
           onClick={handleRegenerate}
           disabled={post.regenerating || validated}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[12px] font-medium border transition-all disabled:opacity-40"
+          style={{ background: "transparent", borderColor: "#2A2A32", color: "#8B8B9E" }}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#3A3A45")}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#2A2A32")}
         >
           <RefreshCw size={12} />
           Regénérer
         </button>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[12px] font-medium border transition-all"
+          style={{ background: "transparent", borderColor: "#2A2A32", color: post.copied ? "#10B981" : "#8B8B9E" }}
         >
           <Copy size={12} />
-          {copied ? "Copié !" : "Copier"}
+          {post.copied ? "Copié !" : "Copier"}
         </button>
         <button
           onClick={handleValidate}
           disabled={post.validating || validated}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ml-auto",
-            validated
-              ? "bg-brand-100 text-brand-700 border border-brand-200 cursor-default"
-              : "bg-brand-500 hover:bg-brand-600 text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[12px] font-semibold transition-all active:scale-[0.98] disabled:opacity-50 ml-auto"
+          style={{
+            background: validated ? "#064E3B" : "#10B981",
+            color: validated ? "#10B981" : "#0F0F10",
+          }}
         >
           {post.validating ? (
             <><Loader2 size={12} className="animate-spin" />Validation…</>
           ) : validated ? (
-            <><CheckCircle2 size={12} />Validé</>
+            <><CheckCircle2 size={12} />Validé ✓</>
           ) : (
             <><CheckCircle2 size={12} />Valider</>
           )}
@@ -264,97 +560,67 @@ function PostCard({
 export default function CreatePage() {
   const router = useRouter();
   const [phase,          setPhase]          = useState<Phase>("loading");
-  const [step,           setStep]           = useState<Step>(1);
-  const [agentTyping,    setAgentTyping]    = useState(false);
-  const [messages,       setMessages]       = useState<ChatMessage[]>([]);
-  const [agentCtx,       setAgentCtx]       = useState<AgentContext | null>(null);
-  const [answers,        setAnswers]        = useState<Partial<Answers>>({});
-  const [input,          setInput]          = useState("");
-  const [posts,          setPosts]          = useState<PostState[]>([]);
-  const [budgetExceeded, setBudgetExceeded] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef  = useRef<HTMLTextAreaElement>(null);
+  const [context,        setContext]         = useState("");
+  const [angles,         setAngles]          = useState<Angle[]>([]);
+  const [anglesLoading,  setAnglesLoading]   = useState(false);
+  const [posts,          setPosts]           = useState<PostState[]>([]);
+  const [budgetExceeded, setBudgetExceeded]  = useState(false);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, agentTyping]);
+    setPhase("context");
+  }, []);
 
-  useEffect(() => {
-    async function init() {
-      const profileRes = await fetch("/api/profile");
-      const profile    = await profileRes.json();
-      if (!profile?.id) { router.replace("/onboarding"); return; }
-      const res = await fetch("/api/agent/start");
-      if (!res.ok) throw new Error("Failed to load");
-      const ctx: AgentContext = await res.json();
-      setAgentCtx(ctx);
-      setMessages([{ id: uid(), from: "agent", text: ctx.question, suggestions: ctx.suggestions }]);
-      setPhase("chat");
-    }
-    init().catch(() => setPhase("chat"));
-  }, [router]);
+  const validatedCount = posts.filter((p) => p.status === "validated").length;
+  const copiedCount    = posts.filter((p) => p.copied).length;
+  const anyInteraction = validatedCount > 0 || copiedCount > 0;
 
-  const submitAnswer = useCallback(
-    (text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed || !agentCtx) return;
-      setInput("");
+  // ── Context submit → fetch angles ──────────────────────────────────────────
 
-      const userMsg: ChatMessage = { id: uid(), from: "user", text: trimmed };
-      setMessages((prev) => [...prev, userMsg]);
-
-      if (step === 1) {
-        setAnswers((prev) => ({ ...prev, subjects: trimmed }));
-        setAgentTyping(true);
-        setTimeout(() => {
-          setAgentTyping(false);
-          setStep(2);
-          setMessages((prev) => [
-            ...prev,
-            { id: uid(), from: "agent", text: "Quel ton pour cette semaine ?", suggestions: agentCtx.toneSuggestions },
-          ]);
-        }, 600);
-      } else if (step === 2) {
-        setAnswers((prev) => ({ ...prev, tone: trimmed }));
-        setAgentTyping(true);
-        setTimeout(() => {
-          setAgentTyping(false);
-          setStep(3);
-          setMessages((prev) => [
-            ...prev,
-            { id: uid(), from: "agent", text: "Combien de posts et quel format principal ?", suggestions: agentCtx.formatSuggestions },
-          ]);
-        }, 600);
-      } else if (step === 3) {
-        const { count, format } = parseQ3(trimmed);
-        setAnswers((prev) => ({ ...prev, count, format }));
-        setStep("done");
+  async function handleContextSubmit(ctx: string) {
+    setContext(ctx);
+    setPhase("angles");
+    setAnglesLoading(true);
+    try {
+      const res = await fetch("/api/agent/angles", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ context: ctx }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAngles(Array.isArray(data) ? data : []);
       }
-    },
-    [step, agentCtx]
-  );
+    } catch {}
+    setAnglesLoading(false);
+  }
 
-  async function handleGenerate() {
+  // ── Angles submit → generate posts ─────────────────────────────────────────
+
+  async function handleGenerate(selectedAngles: Angle[]) {
     setPhase("generating");
     try {
       const res = await fetch("/api/agent/generate", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(answers),
+        body:    JSON.stringify({ context, angles: selectedAngles }),
       });
       const data = await res.json();
       if (!res.ok) {
-        if (data?.error === "budget_exceeded") {
-          setBudgetExceeded(true);
-          setPhase("chat");
-          return;
-        }
-        throw new Error("Generation failed");
+        if (data?.error === "budget_exceeded") { setBudgetExceeded(true); setPhase("angles"); return; }
+        setPhase("angles");
+        return;
       }
-      setPosts((data as GeneratedPost[]).map((p) => ({ ...p, regenerating: false, validating: false })));
+      const postsWithAngles: PostState[] = (data as GeneratedPost[]).map((p, i) => ({
+        ...p,
+        angle: selectedAngles[i] ?? selectedAngles[0],
+        regenerating: false,
+        validating: false,
+        copied: false,
+      }));
+      setPosts(postsWithAngles);
       setPhase("posts");
     } catch {
-      setPhase("chat");
+      setPhase("angles");
     }
   }
 
@@ -362,45 +628,36 @@ export default function CreatePage() {
     setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
 
-  const validatedCount = posts.filter((p) => p.status === "validated").length;
-
-  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      submitAnswer(input);
-    }
-  }
-
-  // ── Loading ────────────────────────────────────────────────────────────────
+  // ── Loading ─────────────────────────────────────────────────────────────────
 
   if (phase === "loading") {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-brand-500" />
+      <div className="flex h-screen items-center justify-center" style={{ background: "#0F0F10" }}>
+        <Loader2 size={20} className="animate-spin" style={{ color: "#10B981" }} />
       </div>
     );
   }
 
-  // ── Generating ─────────────────────────────────────────────────────────────
+  // ── Generating ──────────────────────────────────────────────────────────────
 
   if (phase === "generating") {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-6 px-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-brand-500 flex items-center justify-center shadow-lg">
-          <Zap size={28} className="text-white animate-pulse" fill="currentColor" />
+      <div className="flex h-screen flex-col items-center justify-center gap-5 px-4 text-center" style={{ background: "#0F0F10" }}>
+        <div className="w-14 h-14 rounded-[12px] flex items-center justify-center" style={{ background: "#064E3B" }}>
+          <Loader2 size={22} className="animate-spin" style={{ color: "#10B981" }} />
         </div>
         <div>
-          <p className="text-zinc-900 font-semibold mb-1.5">Génération en cours…</p>
-          <p className="text-sm text-zinc-400 max-w-xs">
-            L&apos;agent analyse vos inspirations et génère vos posts.
+          <p className="text-[16px] font-semibold mb-1" style={{ color: "#F0F0F5" }}>Génération en cours…</p>
+          <p className="text-[13px]" style={{ color: "#8B8B9E" }}>
+            L'agent analyse ton contexte et rédige tes posts.
           </p>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 mt-2">
           {[0, 1, 2, 3, 4].map((i) => (
             <span
               key={i}
-              className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-bounce"
-              style={{ animationDelay: `${i * 120}ms` }}
+              className="w-1.5 h-1.5 rounded-full animate-bounce"
+              style={{ background: "#10B981", animationDelay: `${i * 120}ms` }}
             />
           ))}
         </div>
@@ -408,187 +665,102 @@ export default function CreatePage() {
     );
   }
 
-  // ── Posts ──────────────────────────────────────────────────────────────────
+  // ── Context phase ───────────────────────────────────────────────────────────
 
-  if (phase === "posts") {
+  if (phase === "context") {
+    return <ContextPhase onSubmit={handleContextSubmit} />;
+  }
+
+  // ── Angles phase ────────────────────────────────────────────────────────────
+
+  if (phase === "angles") {
     return (
-      <div className="flex flex-col min-h-screen pb-20">
-        <div className="px-8 pt-8 pb-6">
-          <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">Posts générés</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">
-            {posts.length} post{posts.length > 1 ? "s" : ""} · éditez, validez ou regénérez
-          </p>
-        </div>
-
-        <div className="flex-1 px-8 pb-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              answers={answers}
-              onUpdate={(patch) => updatePost(post.id, patch)}
-            />
-          ))}
-        </div>
-
-        {/* Sticky bottom bar */}
-        <div className="fixed bottom-0 left-60 right-0 z-20 bg-white/95 backdrop-blur-sm border-t border-zinc-200 px-8 py-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-zinc-500">
-              <span className="text-zinc-900 font-semibold">{validatedCount}</span> post
-              {validatedCount > 1 ? "s" : ""} validé{validatedCount > 1 ? "s" : ""}{" "}
-              <span className="text-zinc-300">sur {posts.length}</span>
-            </p>
-            <button
-              onClick={() => router.push("/calendar")}
-              disabled={validatedCount === 0}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.98]",
-                validatedCount > 0
-                  ? "bg-brand-500 hover:bg-brand-600 text-white"
-                  : "bg-zinc-100 text-zinc-300 cursor-not-allowed"
-              )}
-            >
-              Aller au calendrier
-              <ChevronRight size={15} />
-            </button>
-          </div>
-        </div>
-      </div>
+      <AnglesPhase
+        context={context}
+        angles={angles}
+        loading={anglesLoading}
+        onEdit={() => setPhase("context")}
+        onGenerate={handleGenerate}
+      />
     );
   }
 
-  // ── Chat ───────────────────────────────────────────────────────────────────
+  // ── Posts phase ─────────────────────────────────────────────────────────────
 
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1);
   const nextMonthLabel = nextMonth.toLocaleDateString("fr-FR", { month: "long" });
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-50">
+    <div className="min-h-screen pb-24" style={{ background: "#0F0F10" }}>
       {/* Budget exceeded banner */}
       {budgetExceeded && (
-        <div className="flex items-center gap-3 px-6 py-3 bg-red-50 border-b border-red-200 text-red-700 text-sm shrink-0">
+        <div className="flex items-center gap-3 px-6 py-3 text-[13px]" style={{ background: "#450A0A", color: "#EF4444" }}>
           <span>⚠️</span>
-          <span>
-            Budget mensuel atteint. Prochain reset : 1er {nextMonthLabel}
-          </span>
+          <span>Budget mensuel atteint. Prochain reset : 1er {nextMonthLabel}</span>
         </div>
       )}
+
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 bg-white shrink-0">
-        <div className="w-9 h-9 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center">
-          <Zap size={17} className="text-brand-600" />
-        </div>
-        <div>
-          <h1 className="font-semibold text-zinc-900 text-sm">Agent Créateur</h1>
-          <p className="text-xs text-zinc-400">
-            {step === "done" ? "Prêt à générer vos posts" : `Question ${step} sur 3`}
-          </p>
-        </div>
-
-        {/* Progress dots */}
-        <div className="flex items-center gap-1.5 ml-auto">
-          {([1, 2, 3] as const).map((s) => (
-            <span
-              key={s}
-              className={cn(
-                "w-2 h-2 rounded-full transition-all",
-                step === "done" || s < step
-                  ? "bg-brand-500"
-                  : s === step
-                  ? "bg-brand-400 scale-125"
-                  : "bg-zinc-200"
-              )}
-            />
-          ))}
-        </div>
+      <div className="flex items-center gap-3 px-8 py-6 border-b" style={{ borderColor: "#1E1E26" }}>
+        <button
+          onClick={() => setPhase("angles")}
+          className="flex items-center gap-1.5 text-[12px] transition-all hover:opacity-80"
+          style={{ color: "#55555F" }}
+        >
+          <ArrowLeft size={14} />
+          Angles
+        </button>
+        <span style={{ color: "#2A2A32" }}>/</span>
+        <p className="text-[11px] font-medium uppercase tracking-widest" style={{ color: "#10B981" }}>
+          Posts générés
+        </p>
+        <span className="ml-auto text-[12px]" style={{ color: "#55555F" }}>
+          {posts.length} post{posts.length > 1 ? "s" : ""}
+        </span>
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={cn("flex flex-col gap-2", msg.from === "user" ? "items-end" : "items-start")}
-          >
-            <div
-              className={cn(
-                "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
-                msg.from === "user"
-                  ? "bg-brand-500 text-white rounded-br-sm"
-                  : "bg-white border border-zinc-200 text-zinc-700 rounded-bl-sm shadow-sm"
-              )}
-            >
-              <p className="whitespace-pre-wrap">{msg.text}</p>
-            </div>
-
-            {/* Suggestion chips */}
-            {msg.from === "agent" && msg.suggestions && msg.suggestions.length > 0 && step !== "done" && (
-              <div className="flex flex-wrap gap-2 max-w-[90%]">
-                {msg.suggestions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => submitAnswer(s)}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-white border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:border-brand-300 hover:bg-brand-50 transition-all"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* Grid */}
+      <div className={cn(
+        "px-8 pt-6 pb-4 grid gap-4 items-start",
+        posts.length === 1 ? "grid-cols-1 max-w-[680px]" : "grid-cols-1 lg:grid-cols-2"
+      )}>
+        {posts.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            context={context}
+            onUpdate={(patch) => updatePost(post.id, patch)}
+          />
         ))}
-
-        {agentTyping && (
-          <div className="flex items-start">
-            <div className="bg-white border border-zinc-200 rounded-2xl rounded-bl-sm shadow-sm">
-              <ThinkingDots />
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Input area */}
-      <div className="shrink-0 px-6 py-4 border-t border-zinc-200 bg-white">
-        {step === "done" ? (
+      {/* Sticky bottom bar */}
+      {anyInteraction && (
+        <div
+          className="fixed bottom-0 left-60 right-0 z-20 flex items-center justify-between px-8 py-3 border-t"
+          style={{ background: "rgba(15,15,16,0.95)", borderColor: "#2A2A32", backdropFilter: "blur(8px)" }}
+        >
+          <p className="text-[13px]" style={{ color: "#8B8B9E" }}>
+            <span className="font-semibold" style={{ color: "#F0F0F5" }}>{validatedCount}</span> validé{validatedCount > 1 ? "s" : ""}
+            {copiedCount > 0 && (
+              <>
+                {" · "}
+                <span className="font-semibold" style={{ color: "#F0F0F5" }}>{copiedCount}</span> copié{copiedCount > 1 ? "s" : ""}
+              </>
+            )}
+          </p>
           <button
-            onClick={handleGenerate}
-            className="w-full flex items-center justify-center gap-2.5 py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-all active:scale-[0.98] shadow-sm"
+            onClick={() => router.push("/calendar")}
+            disabled={validatedCount === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-[8px] text-[13px] font-semibold transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: "#10B981", color: "#0F0F10" }}
           >
-            <Zap size={17} />
-            Générer mes posts
-            <ChevronRight size={17} />
+            Voir le calendrier
+            <ChevronRight size={15} />
           </button>
-        ) : (
-          <div className="flex items-end gap-3">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                step === 1
-                  ? "Tes sujets de la semaine…"
-                  : step === 2
-                  ? "Ton de voix souhaité…"
-                  : "Nombre de posts et format…"
-              }
-              rows={1}
-              className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-all"
-              style={{ maxHeight: "120px", overflowY: "auto" }}
-              disabled={agentTyping}
-            />
-            <button
-              onClick={() => submitAnswer(input)}
-              disabled={!input.trim() || agentTyping}
-              className="flex items-center justify-center w-10 h-10 bg-brand-500 hover:bg-brand-600 text-white rounded-xl transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-            >
-              <Send size={15} />
-            </button>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
